@@ -56,68 +56,35 @@ func (a *AccessControlService) CanPerformActionWithTarget(ctx context.Context, a
 	}
 
 	// General permission checks (applies to same-actor and different-actor cases).
-	switch action {
-	case ports.AccessActionReadUser:
-		if a.permissionSvc.HasPermission(actorPermissions, permission.ReadAllUsers) {
+	checkAllOrTenant := func(allPerm, tenantPerm permission.Permission, insuffMsg string) error {
+		if a.permissionSvc.HasPermission(actorPermissions, allPerm) {
 			return nil
 		}
-		if a.permissionSvc.HasPermission(actorPermissions, permission.ReadTenantUsers) {
+		if a.permissionSvc.HasPermission(actorPermissions, tenantPerm) {
 			if actorTenantID == targetUser.TenantID {
 				return nil
 			}
 			return ports.NewAccessControlError(ports.ACCodeForbidden, "actor not in same tenant")
 		}
-		return ports.NewAccessControlError(ports.ACCodeForbidden, "insufficient permissions: read tenant or all users")
-
-	case ports.AccessActionUpdateUser:
-		if a.permissionSvc.HasPermission(actorPermissions, permission.UpdateAllUsers) {
-			return nil
-		}
-		if a.permissionSvc.HasPermission(actorPermissions, permission.UpdateTenantUsers) {
-			if actorTenantID == targetUser.TenantID {
-				return nil
-			}
-			return ports.NewAccessControlError(ports.ACCodeForbidden, "actor not in same tenant")
-		}
-		return ports.NewAccessControlError(ports.ACCodeForbidden, "insufficient permissions: update tenant or all users")
-
-	case ports.AccessActionDeleteUser:
-		if a.permissionSvc.HasPermission(actorPermissions, permission.DeleteAllUsers) {
-			return nil
-		}
-		if a.permissionSvc.HasPermission(actorPermissions, permission.DeleteTenantUsers) {
-			if actorTenantID == targetUser.TenantID {
-				return nil
-			}
-			return ports.NewAccessControlError(ports.ACCodeForbidden, "actor not in same tenant")
-		}
-		return ports.NewAccessControlError(ports.ACCodeForbidden, "insufficient permissions: delete tenant or all users")
-
-	case ports.AccessActionChangePassword:
-		if a.permissionSvc.HasPermission(actorPermissions, permission.ChangeUserPassword) {
-			return nil
-		}
-		if a.permissionSvc.HasPermission(actorPermissions, permission.ChangeTenantUserPassword) {
-			if actorTenantID == targetUser.TenantID {
-				return nil
-			}
-			return ports.NewAccessControlError(ports.ACCodeForbidden, "actor not in same tenant")
-		}
-		return ports.NewAccessControlError(ports.ACCodeForbidden, "insufficient permissions: change password for tenant or all users")
-
-	case ports.AccessActionUpdateEmail:
-		if a.permissionSvc.HasPermission(actorPermissions, permission.UpdateUserEmail) {
-			return nil
-		}
-		if a.permissionSvc.HasPermission(actorPermissions, permission.UpdateTenantUserEmail) {
-			if actorTenantID == targetUser.TenantID {
-				return nil
-			}
-			return ports.NewAccessControlError(ports.ACCodeForbidden, "actor not in same tenant")
-		}
-		return ports.NewAccessControlError(ports.ACCodeForbidden, "insufficient permissions: update email for tenant or all users")
-
-	default:
-		return nil
+		return ports.NewAccessControlError(ports.ACCodeForbidden, insuffMsg)
 	}
+
+	// Table-driven mapping from action to permission pair and message reduces
+	// cyclomatic complexity compared to a large switch with repeated logic.
+	actionMap := map[ports.AccessAction]struct {
+		allPerm    permission.Permission
+		tenantPerm permission.Permission
+		message    string
+	}{
+		ports.AccessActionReadUser:       {permission.ReadAllUsers, permission.ReadTenantUsers, "insufficient permissions: read tenant or all users"},
+		ports.AccessActionUpdateUser:     {permission.UpdateAllUsers, permission.UpdateTenantUsers, "insufficient permissions: update tenant or all users"},
+		ports.AccessActionDeleteUser:     {permission.DeleteAllUsers, permission.DeleteTenantUsers, "insufficient permissions: delete tenant or all users"},
+		ports.AccessActionChangePassword: {permission.ChangeUserPassword, permission.ChangeTenantUserPassword, "insufficient permissions: change password for tenant or all users"},
+		ports.AccessActionUpdateEmail:    {permission.UpdateUserEmail, permission.UpdateTenantUserEmail, "insufficient permissions: update email for tenant or all users"},
+	}
+
+	if m, ok := actionMap[action]; ok {
+		return checkAllOrTenant(m.allPerm, m.tenantPerm, m.message)
+	}
+	return nil
 }

@@ -121,7 +121,7 @@ func (r *TokenRedisRepository) getUserTokenClaims(ctx context.Context, userID uu
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user token hashes: %w", err)
 	}
-	var claimsList []*auth.Claims
+	claimsList := make([]*auth.Claims, 0, len(tokenHashes))
 	for _, tokenHash := range tokenHashes {
 		claims, err := r.getTokenClaims(ctx, tokenHash)
 		if err != nil {
@@ -170,25 +170,7 @@ func (r *TokenRedisRepository) deleteExpiredTokenClaims(ctx context.Context) err
 			return err
 		}
 		for _, userKey := range keys {
-			// Iterate user set incrementally to avoid large SMEMBERS
-			var sc uint64 = 0
-			for {
-				members, nextSc, err := r.client.SScan(ctx, userKey, sc, "*", 200).Result()
-				if err != nil {
-					break // skip this user set on error
-				}
-				for _, tokenHash := range members {
-					tokenKey := fmt.Sprintf("%s:token:%s", tokenPrefix, tokenHash)
-					exists, err := r.client.Exists(ctx, tokenKey).Result()
-					if err != nil || exists == 0 {
-						r.client.SRem(ctx, userKey, tokenHash)
-					}
-				}
-				sc = nextSc
-				if sc == 0 { // finished this set
-					break
-				}
-			}
+			r.cleanupUserTokens(ctx, userKey)
 		}
 		cursor = next
 		if cursor == 0 { // done scanning all keys
@@ -196,4 +178,47 @@ func (r *TokenRedisRepository) deleteExpiredTokenClaims(ctx context.Context) err
 		}
 	}
 	return nil
+}
+
+// cleanupUserTokens scans a user's token set and removes token hashes whose token
+// entries no longer exist. This mirrors the original behavior: on SScan errors we
+// skip the user set, and on Exists errors we attempt to remove the token hash.
+func (r *TokenRedisRepository) cleanupUserTokens(ctx context.Context, userKey string) {
+	var sc uint64 = 0
+	for {
+		members, nextSc, err := r.client.SScan(ctx, userKey, sc, "*", 200).Result()
+		if err != nil {
+			if r.logger != nil {
+				r.logger.WithFields(logrus.Fields{"user_key": userKey}).WithError(err).Warn("skipping user set due to scan error")
+			}
+			return // skip this user set on error
+		}
+		r.processUserTokenPage(ctx, userKey, members)
+		sc = nextSc
+		if sc == 0 {
+			break
+		}
+	}
+}
+
+// processUserTokenPage processes a batch of token hashes for a user and removes
+// any tokens whose token key no longer exists in Redis.
+func (r *TokenRedisRepository) processUserTokenPage(ctx context.Context, userKey string, members []string) {
+	for _, tokenHash := range members {
+		tokenKey := fmt.Sprintf("%s:token:%s", tokenPrefix, tokenHash)
+		exists, err := r.client.Exists(ctx, tokenKey).Result()
+		if err != nil {
+			if r.logger != nil {
+				r.logger.WithFields(logrus.Fields{"user_key": userKey, "token_hash": tokenHash}).WithError(err).Warn("exists check failed for token key")
+			}
+			continue
+		}
+		if exists == 0 {
+			if err := r.client.SRem(ctx, userKey, tokenHash).Err(); err != nil {
+				if r.logger != nil {
+					r.logger.WithFields(logrus.Fields{"user_key": userKey, "token_hash": tokenHash}).WithError(err).Warn("failed to remove token hash from user mapping")
+				}
+			}
+		}
+	}
 }

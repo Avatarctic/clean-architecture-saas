@@ -20,6 +20,7 @@ type IntegrationTestSuite struct {
 	baseURL   string
 }
 
+//nolint:gocognit // test setup: reasonably complex integration test bootstrap
 func (s *IntegrationTestSuite) SetupSuite() {
 	// Setup test server/client.
 	// Behavior:

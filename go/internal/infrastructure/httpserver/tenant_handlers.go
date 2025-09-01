@@ -3,6 +3,7 @@ package httpserver
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/audit"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/tenant"
@@ -85,10 +86,14 @@ func (s *Server) listTenants(c echo.Context) error {
 	limit := 20
 	offset := 0
 	if l := c.QueryParam("limit"); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		if v, err := strconv.Atoi(l); err == nil {
+			limit = v
+		}
 	}
 	if o := c.QueryParam("offset"); o != "" {
-		fmt.Sscanf(o, "%d", &offset)
+		if v, err := strconv.Atoi(o); err == nil {
+			offset = v
+		}
 	}
 	ts, total, err := s.tenantService.ListTenants(c.Request().Context(), limit, offset)
 	if err != nil {

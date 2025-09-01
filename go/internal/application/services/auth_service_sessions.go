@@ -28,9 +28,17 @@ func (s *AuthService) StartSession(ctx context.Context, token string, ipAddress,
 	}
 
 	if time.Since(storedClaims.LastActivity) > s.jwtConfig.SessionTimeout {
-		s.tokenRepo.DeleteTokenClaims(ctx, tokenHash)
+		if err := s.tokenRepo.DeleteTokenClaims(ctx, tokenHash); err != nil {
+			if s.logger != nil {
+				s.logger.WithFields(logrus.Fields{"token_hash": tokenHash, "user_id": claims.UserID}).WithError(err).Warn("failed to delete token claims for timed-out session")
+			}
+		}
 		expiresAt := time.Now().Add(s.jwtConfig.AccessTokenTTL)
-		s.tokenRepo.BlacklistToken(ctx, claims.UserID, token, expiresAt)
+		if err := s.tokenRepo.BlacklistToken(ctx, claims.UserID, token, expiresAt); err != nil {
+			if s.logger != nil {
+				s.logger.WithFields(logrus.Fields{"user_id": claims.UserID}).WithError(err).Warn("failed to blacklist token for timed-out session")
+			}
+		}
 		return nil, fmt.Errorf("session timed out due to inactivity")
 	}
 

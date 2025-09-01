@@ -83,8 +83,12 @@ func (s *TenantService) CreateTenant(ctx context.Context, req *tenant.CreateTena
 
 	// Save admin user
 	if err := s.userRepo.Create(ctx, adminUser); err != nil {
-		// If user creation fails, we should clean up the tenant
-		s.repo.Delete(ctx, newTenant.ID) // Attempt cleanup
+		// If user creation fails, attempt cleanup and log any cleanup error
+		if derr := s.repo.Delete(ctx, newTenant.ID); derr != nil {
+			if s.logger != nil {
+				s.logger.WithFields(logrus.Fields{"tenant_id": newTenant.ID}).WithError(derr).Warn("failed to clean up tenant after user creation error")
+			}
+		}
 		return nil, fmt.Errorf("failed to create admin user: %w", err)
 	}
 

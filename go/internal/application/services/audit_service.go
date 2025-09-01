@@ -21,13 +21,16 @@ func NewAuditService(repo ports.AuditRepository, logger *logrus.Logger) ports.Au
 	}
 }
 
-const (
-	auditEnabledCtxKey = "audit_enabled"
-)
+// ContextKey is the type used for context keys in this package.
+// Exported so tests and callers can use the same typed key value.
+type ContextKey string
+
+// AuditEnabledCtxKey is the context key used to store whether auditing is enabled.
+var AuditEnabledCtxKey ContextKey = "audit_enabled"
 
 // AuditEnabled checks whether auditing is enabled for the current user (from context)
 func (s *AuditService) AuditEnabled(ctx context.Context) bool {
-	v := ctx.Value(auditEnabledCtxKey)
+	v := ctx.Value(AuditEnabledCtxKey)
 	if enabled, ok := v.(bool); ok {
 		return enabled
 	}

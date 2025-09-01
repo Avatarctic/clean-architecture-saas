@@ -43,8 +43,9 @@ func TestLogAction_SkipsWhenDisabled(t *testing.T) {
 	}}
 	svc := impl.NewAuditService(repo, nil)
 
-	// Service expects the context key "audit_enabled" as a string.
-	ctx := context.WithValue(context.Background(), "audit_enabled", false)
+	// Use the exported typed context key from the service package so the test
+	// and implementation use the exact same key type and value.
+	ctx := context.WithValue(context.Background(), impl.AuditEnabledCtxKey, false)
 
 	err := svc.LogAction(ctx, &audit.CreateAuditLogRequest{TenantID: uuid.Nil, UserID: nil, Action: audit.AuditAction("test")})
 	if err != nil {

@@ -174,49 +174,13 @@ func (r *auditRepository) buildListQuery(filter *audit.AuditLogFilter, isCount b
 	var args []interface{}
 	argIndex := 1
 
-	// Add WHERE conditions based on filter
-	if filter != nil {
-		if filter.TenantID != nil {
-			conditions = append(conditions, "tenant_id = $"+strconv.Itoa(argIndex))
-			args = append(args, *filter.TenantID)
-			argIndex++
-		}
-
-		if filter.UserID != nil {
-			conditions = append(conditions, "user_id = $"+strconv.Itoa(argIndex))
-			args = append(args, *filter.UserID)
-			argIndex++
-		}
-
-		if filter.Action != nil {
-			conditions = append(conditions, "action = $"+strconv.Itoa(argIndex))
-			args = append(args, string(*filter.Action))
-			argIndex++
-		}
-
-		if filter.Resource != nil {
-			conditions = append(conditions, "resource = $"+strconv.Itoa(argIndex))
-			args = append(args, string(*filter.Resource))
-			argIndex++
-		}
-
-		if filter.ResourceID != nil {
-			conditions = append(conditions, "resource_id = $"+strconv.Itoa(argIndex))
-			args = append(args, *filter.ResourceID)
-			argIndex++
-		}
-
-		if filter.StartTime != nil {
-			conditions = append(conditions, "timestamp >= $"+strconv.Itoa(argIndex))
-			args = append(args, *filter.StartTime)
-			argIndex++
-		}
-
-		if filter.EndTime != nil {
-			conditions = append(conditions, "timestamp <= $"+strconv.Itoa(argIndex))
-			args = append(args, *filter.EndTime)
-			argIndex++
-		}
+	// Build conditions and args from the filter using a helper so the function
+	// body stays small and easier to reason about.
+	conds, condArgs, nextIndex := r.buildConditions(filter, argIndex)
+	if len(conds) > 0 {
+		conditions = append(conditions, conds...)
+		args = append(args, condArgs...)
+		argIndex = nextIndex
 	}
 
 	// Add WHERE clause if conditions exist
@@ -238,10 +202,51 @@ func (r *auditRepository) buildListQuery(filter *audit.AuditLogFilter, isCount b
 			if filter.Offset > 0 {
 				query += " OFFSET $" + strconv.Itoa(argIndex)
 				args = append(args, filter.Offset)
-				argIndex++
 			}
 		}
 	}
 
 	return query, args
+}
+
+// buildConditions constructs WHERE conditions and their corresponding args from
+// the provided filter. It starts numbering placeholders at startIndex and
+// returns the next index after the last used one.
+func (r *auditRepository) buildConditions(filter *audit.AuditLogFilter, startIndex int) ([]string, []interface{}, int) {
+	var conditions []string
+	var args []interface{}
+	idx := startIndex
+	if filter == nil {
+		return conditions, args, idx
+	}
+
+	add := func(base string, v interface{}) {
+		conditions = append(conditions, base+strconv.Itoa(idx))
+		args = append(args, v)
+		idx++
+	}
+
+	if filter.TenantID != nil {
+		add("tenant_id = $", *filter.TenantID)
+	}
+	if filter.UserID != nil {
+		add("user_id = $", *filter.UserID)
+	}
+	if filter.Action != nil {
+		add("action = $", string(*filter.Action))
+	}
+	if filter.Resource != nil {
+		add("resource = $", string(*filter.Resource))
+	}
+	if filter.ResourceID != nil {
+		add("resource_id = $", *filter.ResourceID)
+	}
+	if filter.StartTime != nil {
+		add("timestamp >= $", *filter.StartTime)
+	}
+	if filter.EndTime != nil {
+		add("timestamp <= $", *filter.EndTime)
+	}
+
+	return conditions, args, idx
 }

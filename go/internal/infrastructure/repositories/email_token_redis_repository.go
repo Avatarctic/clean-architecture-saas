@@ -15,7 +15,9 @@ import (
 )
 
 const (
-	emailTokenPrefix = "app:email_token"
+	// emailTokenPrefix prefixes Redis keys for email tokens.
+	// It's a static prefix and not a credential; silence gosec G101 here.
+	emailTokenPrefix = "app:email_token" //nolint:gosec
 )
 
 type EmailTokenRedisRepository struct {

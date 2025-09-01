@@ -67,7 +67,11 @@ func (s *AuthService) Login(ctx context.Context, req *auth.LoginRequest) (*auth.
 
 	now := time.Now()
 	foundUser.LastLoginAt = &now
-	s.userRepo.Update(ctx, foundUser)
+	if err := s.userRepo.Update(ctx, foundUser); err != nil {
+		if s.logger != nil {
+			s.logger.WithFields(logrus.Fields{"user_id": foundUser.ID}).WithError(err).Warn("failed to update user last login time")
+		}
+	}
 
 	return tokens, nil
 }
@@ -79,7 +83,11 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*a
 	}
 
 	if time.Now().After(storedToken.ExpiresAt) {
-		s.tokenRepo.DeleteRefreshToken(ctx, refreshToken)
+		if err := s.tokenRepo.DeleteRefreshToken(ctx, refreshToken); err != nil {
+			if s.logger != nil {
+				s.logger.WithFields(logrus.Fields{"refresh_token": refreshToken}).WithError(err).Warn("failed to delete expired refresh token")
+			}
+		}
 		return nil, fmt.Errorf("refresh token expired")
 	}
 
@@ -93,7 +101,11 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*a
 		return nil, err
 	}
 
-	s.tokenRepo.DeleteRefreshToken(ctx, refreshToken)
+	if err := s.tokenRepo.DeleteRefreshToken(ctx, refreshToken); err != nil {
+		if s.logger != nil {
+			s.logger.WithFields(logrus.Fields{"refresh_token": refreshToken}).WithError(err).Warn("failed to delete used refresh token")
+		}
+	}
 	return tokens, nil
 }
 

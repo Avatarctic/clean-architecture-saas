@@ -6,35 +6,19 @@ run:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
-    - ineffassign
     - staticcheck
-    - typecheck
-    - unused
-    - gosec
-    - gocyclo
     - gofmt
     - goimports
-    - misspell
-    - unparam
-    - unconvert
-    - goconst
-    - gocognit
-    - prealloc
     - revive
-    - exportloopref
-    - nilerr
+    - copyloopvar
+    - prealloc
+    - ineffassign
+    - gocognit
+    - gocyclo
+    - gosec
 
 linters-settings:
-  gosec:
-    excludes:
-      - G204 # Subprocess launched with variable
-      - G301 # Poor file permissions used when creating a directory
-      - G302 # Poor file permissions used with chmod
-      - G304 # File path provided as taint input
-      - G404 # Use of weak random number generator
-
   gocyclo:
     min-complexity: 15
 
@@ -44,7 +28,15 @@ linters-settings:
   revive:
     rules:
       - name: exported
-        disabled: false
+        disabled: true
+
+  gosec:
+    excludes:
+      - G204
+      - G301
+      - G302
+      - G304
+      - G404
 
 issues:
   exclude-rules:

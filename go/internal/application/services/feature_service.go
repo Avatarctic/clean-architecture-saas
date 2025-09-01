@@ -59,16 +59,33 @@ func (s *FeatureFlagService) UpdateFeatureFlag(ctx context.Context, id uuid.UUID
 	if err != nil {
 		return nil, err
 	}
+	if err := s.applyUpdates(ctx, featureFlag, req); err != nil {
+		return nil, err
+	}
 
-	// Map updated fields
+	if err := s.repo.Update(ctx, featureFlag); err != nil {
+		if s.logger != nil {
+			s.logger.WithFields(logrus.Fields{"id": id, "key": featureFlag.Key}).WithError(err).Error("failed to update feature flag in repo")
+		}
+		return nil, fmt.Errorf("failed to update feature flag: %w", err)
+	}
+	if s.logger != nil {
+		s.logger.WithFields(logrus.Fields{"id": id, "key": featureFlag.Key}).Info("feature flag updated")
+	}
+	return featureFlag, nil
+}
+
+// applyUpdates applies the non-nil fields from the request to the feature flag
+// and performs any necessary validation. Returns an error when validation fails.
+func (s *FeatureFlagService) applyUpdates(ctx context.Context, featureFlag *feature.FeatureFlag, req *feature.UpdateFeatureFlagRequest) error {
 	if req.Name != nil {
 		featureFlag.Name = *req.Name
 	}
 	if req.Key != nil {
 		// Validate key uniqueness if it's being changed
 		if *req.Key != featureFlag.Key {
-			if existing, err := s.repo.GetByKey(ctx, *req.Key); err == nil && existing != nil && existing.ID != id {
-				return nil, fmt.Errorf("feature flag key '%s' is already taken", *req.Key)
+			if existing, err := s.repo.GetByKey(ctx, *req.Key); err == nil && existing != nil && existing.ID != featureFlag.ID {
+				return fmt.Errorf("feature flag key '%s' is already taken", *req.Key)
 			}
 		}
 		featureFlag.Key = *req.Key
@@ -95,17 +112,7 @@ func (s *FeatureFlagService) UpdateFeatureFlag(ctx context.Context, id uuid.UUID
 		featureFlag.Rollout = *req.Rollout
 	}
 	featureFlag.UpdatedAt = time.Now()
-
-	if err := s.repo.Update(ctx, featureFlag); err != nil {
-		if s.logger != nil {
-			s.logger.WithFields(logrus.Fields{"id": id, "key": featureFlag.Key}).WithError(err).Error("failed to update feature flag in repo")
-		}
-		return nil, fmt.Errorf("failed to update feature flag: %w", err)
-	}
-	if s.logger != nil {
-		s.logger.WithFields(logrus.Fields{"id": id, "key": featureFlag.Key}).Info("feature flag updated")
-	}
-	return featureFlag, nil
+	return nil
 }
 
 func (s *FeatureFlagService) DeleteFeatureFlag(ctx context.Context, id uuid.UUID) error {

@@ -101,7 +101,9 @@ func (r *PermissionRepository) SetRolePermissions(ctx context.Context, role user
 		}
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	// Remove all existing permissions for the role
 	_, err = tx.ExecContext(ctx, "DELETE FROM role_permissions WHERE role = $1", role)
