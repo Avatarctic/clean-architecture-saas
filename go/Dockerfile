@@ -1,4 +1,4 @@
-FROM golang:1.21.6-alpine3.19 AS builder
+FROM golang:1.23.3-alpine3.19 AS builder
 
 WORKDIR /app
 
@@ -28,6 +28,13 @@ WORKDIR /app
 COPY --from=builder /app/bin/server ./bin/server
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/.env.example ./.env.example
+COPY --from=builder /app/templates ./templates
+
+# Fail early if the binary wasn't produced or wasn't copied into the final
+# image. This prevents later runtime errors where the container tries to
+# exec ./bin/server but the file is missing (commonly caused by bind-mounts
+# masking image contents or build issues).
+RUN test -f ./bin/server
 
 # Expose port
 EXPOSE 8080

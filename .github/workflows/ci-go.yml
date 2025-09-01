@@ -1,5 +1,11 @@
 name: Go CI
 
+# Grant the workflow permission to write packages so the GITHUB_TOKEN can
+# be used to push images to GitHub Container Registry (GHCR).
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches: [ main, develop, master ]
@@ -73,8 +79,9 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          # Hash the module file inside the go/ subfolder where the module lives
-          key: ${{ runner.os }}-go-${{ hashFiles('go/go.sum') }}
+          # Hash any go.sum in the repository (module is under `go/`) so the
+          # cache key resolves whether the file is at repo root or in subfolders.
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
@@ -92,15 +99,21 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_SECRET: test-secret
-          # Integration test server startup
-          START_TEST_SERVER: 'true'
+          # Do not start the real server subprocess in this job; the
+          # dedicated `integration` job runs integration tests with
+          # docker-compose. Running integration tests here caused the
+          # runner to hang waiting for subprocess I/O to drain.
           BASE_DOMAIN: localhost
           BASE_URL: http://localhost:8080
           # SendGrid key not used for real sends in CI; provide dummy non-empty value
           SENDGRID_API_KEY: test-sendgrid-key
         run: |
           mkdir -p coverage
-          go test -v -race -covermode=atomic -coverprofile=coverage/cover.out ./...
+          # Run all packages except the integration test package which is
+          # executed in the separate `integration` job (docker-compose).
+          PACKAGES=$(go list ./... | grep -v '/test/integration')
+          echo "Running tests for packages: $PACKAGES"
+          go test -v -race -covermode=atomic -coverprofile=coverage/cover.out $PACKAGES
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -142,16 +155,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Log in to Docker Hub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: avatarctic/clean-architecture-saas
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -160,7 +174,9 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: .
+          # Build from the go/ directory where the Dockerfile and app live
+          context: ./go
+          file: ./go/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -192,8 +208,51 @@ jobs:
 
       - name: Build and start docker-compose
         run: |
-          # Use the compose file in the go/ directory (working-directory is set to go)
-          docker compose -f docker-compose.yml up -d --build
+          # Prepare a runtime .env for docker-compose from the checked-in
+          # .env.example. We don't commit .env to the repository, but
+          # docker-compose requires an env file during CI runs.
+          cp .env.example .env || true
+          # Ensure service hostnames are correct for compose network
+          sed -i 's/^DB_HOST=.*/DB_HOST=db/' .env || echo 'DB_HOST=db' >> .env
+          sed -i 's/^REDIS_HOST=.*/REDIS_HOST=redis/' .env || echo 'REDIS_HOST=redis' >> .env
+          # Ensure TLS vars are empty in CI so the server runs HTTP when no certs are provided
+          sed -i 's/^TLS_CERT_FILE=.*/TLS_CERT_FILE=/' .env || echo 'TLS_CERT_FILE=' >> .env
+          sed -i 's/^TLS_KEY_FILE=.*/TLS_KEY_FILE=/' .env || echo 'TLS_KEY_FILE=' >> .env
+          # Show the CI-only compose config so we can verify there is no
+          # dev host bind for the app service.
+          echo "--- effective CI compose config ---"
+          docker compose -f docker-compose.ci.yml config || true
+
+          # Build the app image explicitly so we can inspect it before
+          # docker-compose attempts to start containers.
+          docker build -f Dockerfile -t go-app:ci .
+          echo "--- image /app contents ---"
+          docker run --rm go-app:ci ls -la /app || true
+          echo "--- image /app/bin contents ---"
+          docker run --rm go-app:ci ls -la /app/bin || true
+
+          # Now start the CI-only compose (no host bind mounts).
+          # Capture output; if it fails we'll collect extra diagnostics.
+          if ! docker compose -f docker-compose.ci.yml up -d; then
+            echo "docker compose up failed; collecting diagnostics..."
+            echo "--- effective CI compose config (again) ---"
+            docker compose -f docker-compose.ci.yml config || true
+            echo "--- docker images ---"
+            docker images || true
+            echo "--- docker volumes ---"
+            docker volume ls || true
+            echo "--- docker ps -a (recent containers) ---"
+            docker ps -a --no-trunc --format 'table {{.ID}}	{{.Image}}	{{.Names}}	{{.Status}}' || true
+            # Inspect any containers created from the built image to see mounts
+            CONTAINERS=$(docker ps -a --filter ancestor=go-app:ci -q)
+            if [ -n "$CONTAINERS" ]; then
+              for c in $CONTAINERS; do
+                echo "--- inspect container $c Mounts ---"
+                docker inspect --format '{{json .Mounts}}' $c || true
+              done
+            fi
+            exit 1
+          fi
 
       - name: Wait for app health
         run: |
@@ -207,8 +266,8 @@ jobs:
             sleep 1
           done
           echo "App did not become healthy in time"
-          docker compose -f docker-compose.yml logs --no-color app || true
-          docker compose -f docker-compose.yml ps
+          docker compose -f docker-compose.ci.yml logs --no-color app || true
+          docker compose -f docker-compose.ci.yml ps
           exit 1
 
       - name: Run integration tests
@@ -221,4 +280,4 @@ jobs:
       - name: Tear down docker-compose
         if: always()
         run: |
-          docker compose -f docker-compose.yml down -v
+          docker compose -f docker-compose.ci.yml down -v

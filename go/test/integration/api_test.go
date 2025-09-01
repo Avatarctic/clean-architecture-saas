@@ -3,9 +3,12 @@ package integration_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -15,9 +18,10 @@ import (
 
 type IntegrationTestSuite struct {
 	suite.Suite
-	serverCmd *exec.Cmd
-	client    *http.Client
-	baseURL   string
+	serverCmd    *exec.Cmd
+	serverCancel func()
+	client       *http.Client
+	baseURL      string
 }
 
 //nolint:gocognit // test setup: reasonably complex integration test bootstrap
@@ -40,64 +44,100 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	// Optionally start server in subprocess (requires working environment)
 	if os.Getenv("START_TEST_SERVER") == "true" {
-		// Ensure required env vars for the real server are present. The
-		// application's config.Load() panics if these are missing, so fail
-		// early with a clear message instead of starting a process that will
-		// immediately crash.
 		required := []string{"BASE_DOMAIN", "JWT_SECRET", "SENDGRID_API_KEY", "BASE_URL"}
-		var missing []string
-		for _, k := range required {
-			if os.Getenv(k) == "" {
-				missing = append(missing, k)
-			}
-		}
-		if len(missing) > 0 {
+		if missing := checkRequiredEnv(required); len(missing) > 0 {
 			s.T().Fatalf("START_TEST_SERVER=true but required env vars missing: %v; set TEST_SERVER_URL instead or provide these env vars", missing)
 		}
 
-		// Start server using `go run` so we reuse the project's main wiring.
-		cmd := exec.CommandContext(context.Background(), "go", "run", "./cmd/server")
-		// forward output to test process so logs are visible when running tests
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		if err := cmd.Start(); err != nil {
+		cmd, cancel, err := startServerProcess()
+		if err != nil {
 			s.T().Fatalf("failed to start server subprocess: %v", err)
 		}
 		s.serverCmd = cmd
+		s.serverCancel = cancel
 
-		// Poll health endpoint until ready or timeout
 		s.baseURL = "http://localhost:8080"
-		deadline := time.Now().Add(15 * time.Second)
-		for time.Now().Before(deadline) {
-			req, _ := http.NewRequest("GET", s.baseURL+"/health", nil)
-			resp, err := s.client.Do(req)
-			if err == nil && resp.StatusCode == http.StatusOK {
-				if resp.Body != nil {
-					resp.Body.Close()
-				}
-				return
+		timeoutSecs := 60
+		if v := os.Getenv("TEST_SERVER_STARTUP_SECONDS"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 {
+				timeoutSecs = n
 			}
-			if resp != nil && resp.Body != nil {
-				resp.Body.Close()
-			}
-			time.Sleep(500 * time.Millisecond)
 		}
-
-		// If we reach here, server didn't start in time
-		// Kill the process and fail the setup.
-		_ = cmd.Process.Kill()
-		s.T().Fatal("server did not become healthy in time")
+		if ok := waitForServerHealthy(s.client, s.baseURL, timeoutSecs); !ok {
+			_ = cmd.Process.Kill()
+			s.T().Fatal("server did not become healthy in time")
+		}
 	}
 
 	// Default: assume server already running on localhost:8080
 	s.baseURL = "http://localhost:8080"
 }
 
+// checkRequiredEnv returns a slice of missing environment variable names.
+func checkRequiredEnv(keys []string) []string {
+	var missing []string
+	for _, k := range keys {
+		if os.Getenv(k) == "" {
+			missing = append(missing, k)
+		}
+	}
+	return missing
+}
+
+// startServerProcess starts the server subprocess using an explicit path to
+// cmd/server/main.go and returns the started *exec.Cmd.
+func startServerProcess() (*exec.Cmd, func(), error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, nil, err
+	}
+	repoRoot := filepath.Join(wd, "..", "..")
+	mainFile := filepath.Join(repoRoot, "cmd", "server", "main.go")
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := exec.CommandContext(ctx, "go", "run", mainFile)
+	// Ensure the command runs from the repo go/ root.
+	cmd.Dir = repoRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		cancel()
+		return nil, nil, err
+	}
+	return cmd, cancel, nil
+}
+
+// waitForServerHealthy polls the /health endpoint until it returns 200 or
+// the timeout (in seconds) elapses.
+func waitForServerHealthy(client *http.Client, baseURL string, timeoutSecs int) bool {
+	fmt.Fprintf(os.Stdout, "Waiting up to %ds for test server to become healthy...\n", timeoutSecs)
+	deadline := time.Now().Add(time.Duration(timeoutSecs) * time.Second)
+	for time.Now().Before(deadline) {
+		req, _ := http.NewRequest("GET", baseURL+"/health", nil)
+		resp, err := client.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
+			return true
+		}
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return false
+}
+
 func (s *IntegrationTestSuite) TearDownSuite() {
 	if s.serverCmd != nil && s.serverCmd.Process != nil {
-		// Try graceful termination, then kill if needed
-		_ = s.serverCmd.Process.Signal(os.Interrupt)
+		// Cancel the server context if available (will request graceful
+		// shutdown), then wait for process to exit and kill if it doesn't.
+		if s.serverCancel != nil {
+			s.serverCancel()
+		} else {
+			_ = s.serverCmd.Process.Signal(os.Interrupt)
+		}
+
 		done := make(chan struct{})
 		go func() {
 			s.serverCmd.Wait()
@@ -105,7 +145,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 		}()
 		select {
 		case <-done:
-		case <-time.After(3 * time.Second):
+		case <-time.After(10 * time.Second):
 			_ = s.serverCmd.Process.Kill()
 		}
 	}
