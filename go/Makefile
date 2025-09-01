@@ -47,7 +47,7 @@ test-coverage: test ## Run tests and show coverage
 coverage-ci: ## Run tests and generate coverage profile compatible with CI
 	@echo "📊 Generating coverage profile..."
 	@mkdir -p coverage
-	@go test ./... -v -covermode=count -coverprofile=coverage/cover.out
+	@go test ./... -v -covermode=atomic -coverprofile=coverage/cover.out
 	@go tool cover -func=coverage/cover.out | sed -n '1,200p'
 
 lint: ## Run linter

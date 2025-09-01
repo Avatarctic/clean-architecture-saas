@@ -19,11 +19,15 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
+      - name: Install golangci-lint
+        run: |
+          # Install golangci-lint into GOPATH/bin for the runner
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
-          args: --timeout=5m
+        run: |
+          # Use the job's working-directory (defaults.run.working-directory is set to go)
+          $(go env GOPATH)/bin/golangci-lint run --timeout=5m ./...
       - name: Run go vet
         run: go vet ./...
 
@@ -69,7 +73,8 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          # Hash the module file inside the go/ subfolder where the module lives
+          key: ${{ runner.os }}-go-${{ hashFiles('go/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
@@ -95,7 +100,7 @@ jobs:
           SENDGRID_API_KEY: test-sendgrid-key
         run: |
           mkdir -p coverage
-          go test -v -race -covermode=count -coverprofile=coverage/cover.out ./...
+          go test -v -race -covermode=atomic -coverprofile=coverage/cover.out ./...
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
