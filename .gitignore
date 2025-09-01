@@ -1,0 +1,17 @@
+# Ignore local environment files
+.env
+
+# Build artifacts
+bin/
+
+# Go module cache
+/go/pkg/mod/
+
+# Editor swap/temp files
+*.swp
+*.swo
+.DS_Store
+*.log
+
+# Vendor
+/go/vendor/
