@@ -1,3 +1,5 @@
+## CI-only compose file: this file is intentionally self-contained and does not mount the host
+## workspace. Use this in CI to run the baked image and avoid masking built artifacts.
 services:
   db:
     image: postgres:16-alpine
