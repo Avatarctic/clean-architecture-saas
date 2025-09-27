@@ -1,9 +1,11 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
+	"github.com/avatarctic/clean-architecture-saas/go/internal/application/services"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/audit"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/permission"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/user"
@@ -76,15 +78,21 @@ func (s *Server) addPermissionToRole(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add permission to role")
 	}
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		actorID, _ := helpers.GetUserIDFromContext(c)
 		tenantID, _ := helpers.GetTenantIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"permission_change": true}
+		if helpers.GetAuditEnabled(c) {
+			details["role"] = req.Role
+			details["permission"] = req.Permission
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:  tenantID,
 			UserID:    &actorID,
 			Action:    audit.ActionUpdate,
 			Resource:  audit.ResourcePermission,
-			Details:   map[string]any{"role": req.Role, "permission": req.Permission},
+			Details:   details,
 			IPAddress: c.RealIP(),
 			UserAgent: c.Request().UserAgent(),
 		})
@@ -107,15 +115,21 @@ func (s *Server) removePermissionFromRole(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove permission from role")
 	}
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		actorID, _ := helpers.GetUserIDFromContext(c)
 		tenantID, _ := helpers.GetTenantIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"permission_change": true}
+		if helpers.GetAuditEnabled(c) {
+			details["role"] = role
+			details["permission"] = perm
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:  tenantID,
 			UserID:    &actorID,
 			Action:    audit.ActionUpdate,
 			Resource:  audit.ResourcePermission,
-			Details:   map[string]any{"role": role, "permission": perm},
+			Details:   details,
 			IPAddress: c.RealIP(),
 			UserAgent: c.Request().UserAgent(),
 		})
@@ -146,15 +160,21 @@ func (s *Server) setRolePermissions(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to set role permissions")
 	}
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		actorID, _ := helpers.GetUserIDFromContext(c)
 		tenantID, _ := helpers.GetTenantIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"permission_change": true}
+		if helpers.GetAuditEnabled(c) {
+			details["role"] = req.Role
+			details["permissions"] = req.Permissions
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:  tenantID,
 			UserID:    &actorID,
 			Action:    audit.ActionUpdate,
 			Resource:  audit.ResourcePermission,
-			Details:   map[string]any{"role": req.Role, "permissions": req.Permissions},
+			Details:   details,
 			IPAddress: c.RealIP(),
 			UserAgent: c.Request().UserAgent(),
 		})

@@ -1,9 +1,11 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
+	"github.com/avatarctic/clean-architecture-saas/go/internal/application/services"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/audit"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/user"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/infrastructure/httpserver/helpers"
@@ -39,15 +41,20 @@ func (s *Server) createUser(c echo.Context) error {
 	}
 
 	// Audit log: user created
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		uID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"created": true}
+		if helpers.GetAuditEnabled(c) {
+			details["email"] = createdUser.Email
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   tenantID,
 			UserID:     &uID,
 			Action:     audit.ActionCreate,
 			Resource:   audit.ResourceUser,
 			ResourceID: &createdUser.ID,
-			Details:    map[string]any{"email": createdUser.Email},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -59,6 +66,12 @@ func (s *Server) createUser(c echo.Context) error {
 // getOwnProfile returns the current user's own profile (Case 1: Self-profile)
 func (s *Server) getOwnProfile(c echo.Context) error {
 	// Get user ID from JWT context
+	// Prefer the full current user object from context (set by JWT middleware) to avoid DB roundtrip
+	if userObj, err := helpers.GetCurrentUserFromContext(c); err == nil {
+		return c.JSON(http.StatusOK, userObj)
+	}
+
+	// Fallback: fetch by ID if middleware did not populate the full user
 	userID, err := helpers.GetUserIDFromContext(c)
 	if err != nil {
 		return err
@@ -145,15 +158,20 @@ func (s *Server) updateUser(c echo.Context) error {
 	}
 
 	// Audit log: user updated
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		uID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"updated": true}
+		if helpers.GetAuditEnabled(c) {
+			details["fields"] = req
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   updatedUser.TenantID,
 			UserID:     &uID,
 			Action:     audit.ActionUpdate,
 			Resource:   audit.ResourceUser,
 			ResourceID: &updatedUser.ID,
-			Details:    map[string]any{"fields": req},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -202,15 +220,20 @@ func (s *Server) deleteUser(c echo.Context) error {
 	}
 
 	// Audit log: user deleted
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		uID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"deleted": true}
+		if helpers.GetAuditEnabled(c) {
+			details["email"] = targetUser.Email
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   targetUser.TenantID,
 			UserID:     &uID,
 			Action:     audit.ActionDelete,
 			Resource:   audit.ResourceUser,
 			ResourceID: &userID,
-			Details:    map[string]any{"email": targetUser.Email},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -294,34 +317,35 @@ func (s *Server) verifyEmail(c echo.Context) error {
 
 	verifiedUser, err := s.userService.VerifyEmail(c.Request().Context(), token)
 	if err != nil {
-		// Audit log: email verified
-		if s.auditSvc != nil && verifiedUser != nil {
-			_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
-				TenantID:   verifiedUser.TenantID,
-				UserID:     &verifiedUser.ID,
-				Action:     audit.ActionUpdate,
-				Resource:   audit.ResourceUser,
-				ResourceID: &verifiedUser.ID,
-				Details:    map[string]any{"email_verified": true},
-				IPAddress:  c.RealIP(),
-				UserAgent:  c.Request().UserAgent(),
-			})
-		}
-
 		if c.Request().Method == "GET" {
 			return c.HTML(http.StatusBadRequest, `
-                <!DOCTYPE html>
-                <html>
-                <head><title>Verification Failed</title></head>
-                <body>
-                    <h1>Verification Failed</h1>
-                    <p>The verification link is invalid or has expired.</p>
-                    <a href="/resend-verification">Request New Verification Email</a>
-                </body>
-                </html>
-            `)
+				<!DOCTYPE html>
+				<html>
+				<head><title>Verification Failed</title></head>
+				<body>
+					<h1>Verification Failed</h1>
+					<p>The verification link is invalid or has expired.</p>
+					<a href="/resend-verification">Request New Verification Email</a>
+				</body>
+				</html>
+			`)
 		}
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	// Audit log: email verified
+	if s.auditSvc != nil && verifiedUser != nil && helpers.GetAuditEnabled(c) {
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
+			TenantID:   verifiedUser.TenantID,
+			UserID:     &verifiedUser.ID,
+			Action:     audit.ActionUpdate,
+			Resource:   audit.ResourceUser,
+			ResourceID: &verifiedUser.ID,
+			Details:    map[string]any{"email_verified": true},
+			IPAddress:  c.RealIP(),
+			UserAgent:  c.Request().UserAgent(),
+		})
 	}
 
 	if c.Request().Method == "GET" {
@@ -359,14 +383,19 @@ func (s *Server) resendVerificationEmail(c echo.Context) error {
 	}
 
 	// Audit log: verification email resent (global context)
-	if s.auditSvc != nil {
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"resend_verification": true}
+		if helpers.GetAuditEnabled(c) {
+			details["email"] = req.Email
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   uuid.Nil,
 			UserID:     nil,
 			Action:     audit.ActionUpdate,
 			Resource:   audit.ResourceUser,
 			ResourceID: nil,
-			Details:    map[string]any{"email": req.Email, "action": "resend_verification"},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -422,15 +451,20 @@ func (s *Server) requestEmailUpdate(c echo.Context) error {
 	}
 
 	// Audit log: email update requested
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
 		uID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		details := map[string]any{"email_update_requested": true}
+		if helpers.GetAuditEnabled(c) {
+			details["new_email"] = req.NewEmail
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   targetUser.TenantID,
 			UserID:     &uID,
 			Action:     audit.ActionUpdate,
 			Resource:   audit.ResourceUser,
 			ResourceID: &userID,
-			Details:    map[string]any{"email_update_requested": req.NewEmail},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -490,14 +524,19 @@ func (s *Server) confirmEmailUpdate(c echo.Context) error {
 	}
 
 	// Audit log: email update confirmed
-	if s.auditSvc != nil && updatedUser != nil {
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+	if s.auditSvc != nil && updatedUser != nil && helpers.GetAuditEnabled(c) {
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"email_updated": true}
+		if helpers.GetAuditEnabled(c) {
+			details["email"] = updatedUser.Email
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   updatedUser.TenantID,
 			UserID:     &updatedUser.ID,
 			Action:     audit.ActionUpdate,
 			Resource:   audit.ResourceUser,
 			ResourceID: &updatedUser.ID,
-			Details:    map[string]any{"email_updated": updatedUser.Email},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -572,18 +611,22 @@ func (s *Server) changePassword(c echo.Context) error {
 	}
 
 	// Audit log: password changed
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
 		uID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		details := map[string]any{"password_changed": true}
+		// Do not include any PII in password-change audit even when enabled; only indicate the event
+		auditReq := audit.CreateAuditLogRequest{
 			TenantID:   targetUser.TenantID,
 			UserID:     &uID,
 			Action:     audit.ActionUpdate,
 			Resource:   audit.ResourceUser,
 			ResourceID: &userID,
-			Details:    map[string]any{"password_changed": true},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
-		})
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &auditReq)
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "password changed successfully"})

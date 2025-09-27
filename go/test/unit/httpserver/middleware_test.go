@@ -12,6 +12,7 @@ import (
 
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/auth"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/permission"
+	"github.com/avatarctic/clean-architecture-saas/go/internal/infrastructure/httpserver/helpers"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/infrastructure/httpserver/middleware"
 	tmocks "github.com/avatarctic/clean-architecture-saas/go/test/mocks"
 	"github.com/stretchr/testify/require"
@@ -62,7 +63,7 @@ func TestPermMiddleware_Returns403WhenMissingPermission(t *testing.T) {
 	htErr, ok := err.(*echo.HTTPError)
 	require.True(t, ok)
 	require.Equal(t, http.StatusUnauthorized, htErr.Code)
-	c.Set("user_permissions", []permission.Permission{permission.Permission("other")})
+	helpers.SetUserPermissions(c, []permission.Permission{permission.Permission("other")})
 	err = h(c)
 	require.Error(t, err)
 	htErr, ok = err.(*echo.HTTPError)
@@ -78,7 +79,7 @@ func TestPermMiddleware_AllowsWhenPermissionPresent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.Set("user_permissions", []permission.Permission{permission.Permission("can_edit")})
+	helpers.SetUserPermissions(c, []permission.Permission{permission.Permission("can_edit")})
 	err := h(c)
 	require.NoError(t, err)
 }

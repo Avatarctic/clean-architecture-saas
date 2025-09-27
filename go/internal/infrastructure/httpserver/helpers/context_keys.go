@@ -19,6 +19,7 @@ const (
 	keyUserPermissions ctxKey = "user_permissions"
 	keyUserEmail       ctxKey = "user_email"
 	keyTargetUser      ctxKey = "target_user"
+	keyCurrentUser     ctxKey = "current_user"
 	keyAuditEnabled    ctxKey = "audit_enabled"
 	keyJWTTenantID     ctxKey = "jwt_tenant_id"
 )
@@ -74,16 +75,17 @@ func GetTargetUserRaw(c echo.Context) (*user.User, bool) {
 	return u, ok
 }
 
+// Current acting user (set by JWT middleware)
+func SetCurrentUser(c echo.Context, u *user.User) { c.Set(string(keyCurrentUser), u) }
+func GetCurrentUserRaw(c echo.Context) (*user.User, bool) {
+	v := c.Get(string(keyCurrentUser))
+	u, ok := v.(*user.User)
+	return u, ok
+}
+
 func SetAuditEnabled(c echo.Context, enabled bool) { c.Set(string(keyAuditEnabled), enabled) }
 func GetAuditEnabledRaw(c echo.Context) (bool, bool) {
 	v := c.Get(string(keyAuditEnabled))
 	b, ok := v.(bool)
 	return b, ok
-}
-
-func SetJWTTenantID(c echo.Context, id uuid.UUID) { c.Set(string(keyJWTTenantID), id) }
-func GetJWTTenantIDRaw(c echo.Context) (uuid.UUID, bool) {
-	v := c.Get(string(keyJWTTenantID))
-	id, ok := v.(uuid.UUID)
-	return id, ok
 }

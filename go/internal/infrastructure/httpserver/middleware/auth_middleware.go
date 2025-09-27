@@ -3,7 +3,6 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 
@@ -63,15 +62,17 @@ func (m *JWTMiddleware) validateAndStartSession(c echo.Context) (*auth.Claims, e
 
 // populateContextWithClaims sets standard context keys and loads permissions and user info.
 func (m *JWTMiddleware) populateContextWithClaims(c echo.Context, claims *auth.Claims) error {
-	c.Set("user_id", claims.UserID)
-	c.Set("user_role", claims.Role)
-	c.Set("user_email", claims.Email)
+	helpers.SetUserID(c, claims.UserID)
+	helpers.SetUserRole(c, claims.Role)
+	helpers.SetUserEmail(c, claims.Email)
 
 	userObj, err := m.userService.GetUser(c.Request().Context(), claims.UserID)
 	if err == nil && userObj != nil {
-		c.Set("audit_enabled", userObj.AuditEnabled)
+		helpers.SetAuditEnabled(c, userObj.AuditEnabled)
+		// also populate the full current user into context to avoid redundant DB reads
+		helpers.SetCurrentUser(c, userObj)
 	} else {
-		c.Set("audit_enabled", true)
+		helpers.SetAuditEnabled(c, true)
 	}
 
 	if m.logger != nil {
@@ -89,16 +90,14 @@ func (m *JWTMiddleware) populateContextWithClaims(c echo.Context, claims *auth.C
 	if permissions == nil {
 		permissions = []permission.Permission{}
 	}
-	c.Set("user_permissions", permissions)
+	helpers.SetUserPermissions(c, permissions)
 
-	if tenantID, exists := c.Get("tenant_id").(uuid.UUID); exists {
+	if tenantID, exists := helpers.GetTenantIDRaw(c); exists {
 		if claims.TenantID != tenantID {
 			return echo.NewHTTPError(http.StatusForbidden, "user does not belong to this tenant")
 		}
-		c.Set("jwt_tenant_id", claims.TenantID)
 	} else {
-		c.Set("tenant_id", claims.TenantID)
-		c.Set("jwt_tenant_id", claims.TenantID)
+		helpers.SetTenantID(c, claims.TenantID)
 	}
 	return nil
 }

@@ -99,9 +99,9 @@ func (s *Server) evaluateFeatureFlag(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	tenant, err := s.tenantService.GetTenant(c.Request().Context(), tenantID)
+	tenant, err := helpers.GetTenantFromContext(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get tenant details")
+		return err
 	}
 	context := &feature.FeatureFlagContext{
 		UserID:   userID,

@@ -86,3 +86,19 @@ func GetJWTTokenFromContext(c echo.Context) (string, error) {
 	}
 	return token, nil
 }
+
+func GetAuditEnabled(c echo.Context) bool {
+	if b, ok := GetAuditEnabledRaw(c); ok {
+		return b
+	}
+	return true
+}
+
+// GetCurrentUserFromContext returns the full acting user object set by JWT middleware
+func GetCurrentUserFromContext(c echo.Context) (*user.User, error) {
+	u, ok := GetCurrentUserRaw(c)
+	if !ok || u == nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "invalid user context")
+	}
+	return u, nil
+}

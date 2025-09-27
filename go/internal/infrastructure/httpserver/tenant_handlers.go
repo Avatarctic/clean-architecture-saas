@@ -1,10 +1,12 @@
 package httpserver
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/avatarctic/clean-architecture-saas/go/internal/application/services"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/audit"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/tenant"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/user"
@@ -27,17 +29,23 @@ func (s *Server) createTenant(c echo.Context) error {
 	}
 
 	// Audit: tenant created
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		tenantID := t.ID
 		// acting user may be nil for self-service or system actions
 		actorID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"created": true}
+		if helpers.GetAuditEnabled(c) {
+			details["name"] = t.Name
+			details["plan"] = t.Plan
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   tenantID,
 			UserID:     &actorID,
 			Action:     audit.ActionCreate,
 			Resource:   audit.ResourceTenant,
 			ResourceID: &tenantID,
-			Details:    map[string]any{"name": t.Name, "plan": t.Plan},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -124,16 +132,22 @@ func (s *Server) createUserInTenant(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create user")
 	}
 
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		// Log user creation within tenant
 		actorID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"created": true}
+		if helpers.GetAuditEnabled(c) {
+			details["email"] = createdUser.Email
+			details["role"] = createdUser.Role
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   tenantID,
 			UserID:     &actorID,
 			Action:     audit.ActionCreate,
 			Resource:   audit.ResourceUser,
 			ResourceID: &createdUser.ID,
-			Details:    map[string]any{"email": createdUser.Email, "role": createdUser.Role},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -151,7 +165,7 @@ func (s *Server) suspendTenant(c echo.Context) error {
 	}
 
 	// Get current tenant
-	currentTenant, err := s.tenantService.GetTenant(c.Request().Context(), id)
+	currentTenant, err := helpers.GetTenantFromContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
@@ -173,15 +187,20 @@ func (s *Server) suspendTenant(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		actorID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"status": updatedTenant.Status}
+		if helpers.GetAuditEnabled(c) {
+			details["name"] = updatedTenant.Name
+		}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   id,
 			UserID:     &actorID,
 			Action:     audit.ActionUpdate,
 			Resource:   audit.ResourceTenant,
 			ResourceID: &id,
-			Details:    map[string]any{"status": updatedTenant.Status, "name": updatedTenant.Name},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -197,7 +216,7 @@ func (s *Server) activateTenant(c echo.Context) error {
 	}
 
 	// Get target tenant
-	targetTenant, err := s.tenantService.GetTenant(c.Request().Context(), id)
+	targetTenant, err := helpers.GetTenantFromContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
@@ -219,15 +238,17 @@ func (s *Server) activateTenant(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		actorID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"status": updatedTenant.Status}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   id,
 			UserID:     &actorID,
 			Action:     audit.ActionUpdate,
 			Resource:   audit.ResourceTenant,
 			ResourceID: &id,
-			Details:    map[string]any{"status": updatedTenant.Status},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -243,7 +264,7 @@ func (s *Server) cancelTenant(c echo.Context) error {
 	}
 
 	// Get current tenant
-	currentTenant, err := s.tenantService.GetTenant(c.Request().Context(), id)
+	currentTenant, err := helpers.GetTenantFromContext(c)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
@@ -265,9 +286,10 @@ func (s *Server) cancelTenant(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		actorID, _ := helpers.GetUserIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   id,
 			UserID:     &actorID,
 			Action:     audit.ActionUpdate,

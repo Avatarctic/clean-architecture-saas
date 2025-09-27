@@ -1,8 +1,10 @@
 package httpserver
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/avatarctic/clean-architecture-saas/go/internal/application/services"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/audit"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/auth"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/infrastructure/httpserver/helpers"
@@ -27,16 +29,18 @@ func (s *Server) login(c echo.Context) error {
 	}
 
 	// Audit login
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		userID, _ := helpers.GetUserIDFromContext(c)
 		tenantID, _ := helpers.GetTenantIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"method": "password"}
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   tenantID,
 			UserID:     &userID,
 			Action:     audit.ActionLogin,
 			Resource:   audit.ResourceUser,
 			ResourceID: &userID,
-			Details:    map[string]any{"method": "password"},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})
@@ -79,15 +83,18 @@ func (s *Server) logout(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to logout")
 	}
 
-	if s.auditSvc != nil {
+	if s.auditSvc != nil && helpers.GetAuditEnabled(c) {
 		tenantID, _ := helpers.GetTenantIDFromContext(c)
-		_ = s.auditSvc.LogAction(c.Request().Context(), &audit.CreateAuditLogRequest{
+		ctxWithAudit := context.WithValue(c.Request().Context(), services.AuditEnabledCtxKey, helpers.GetAuditEnabled(c))
+		details := map[string]any{"logout": true}
+		details["token_hash"] = s.authSvc.GetTokenHash(token)
+		_ = s.auditSvc.LogAction(ctxWithAudit, &audit.CreateAuditLogRequest{
 			TenantID:   tenantID,
 			UserID:     &userID,
 			Action:     audit.ActionLogout,
 			Resource:   audit.ResourceUser,
 			ResourceID: &userID,
-			Details:    map[string]any{"token_hash": s.authSvc.GetTokenHash(token)},
+			Details:    details,
 			IPAddress:  c.RealIP(),
 			UserAgent:  c.Request().UserAgent(),
 		})

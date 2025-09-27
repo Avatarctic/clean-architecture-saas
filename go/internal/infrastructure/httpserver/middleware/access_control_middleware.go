@@ -33,7 +33,7 @@ func (m *AccessControlMiddleware) RequireUserAction(action ports.AccessAction) e
 			if err != nil {
 				return echo.NewHTTPError(http.StatusNotFound, "target user not found")
 			}
-			c.Set("target_user", targetUser)
+			helpers.SetTargetUser(c, targetUser)
 
 			if err := m.accessControl.CanPerformActionWithTarget(c.Request().Context(), actorID, actorTenantID, perms, targetUser, action); err != nil {
 				return m.mapAccessControlError(err)
@@ -103,7 +103,7 @@ func (m *AccessControlMiddleware) PreloadTargetUser() echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusNotFound, "target user not found")
 			}
 
-			c.Set("target_user", targetUser)
+			helpers.SetTargetUser(c, targetUser)
 			return next(c)
 		}
 	})
