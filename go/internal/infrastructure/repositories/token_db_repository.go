@@ -23,13 +23,13 @@ func NewTokenDBRepository(database *db.Database, logger *logrus.Logger) *TokenDB
 }
 
 // storeRefreshToken stores a refresh token in the database
-func (r *TokenDBRepository) storeRefreshToken(ctx context.Context, userID uuid.UUID, token string, expiresAt time.Time) error {
+func (r *TokenDBRepository) storeRefreshToken(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
 	query := `
-		INSERT INTO refresh_tokens (id, user_id, token, expires_at, created_at)
+		INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
 		VALUES ($1, $2, $3, $4, $5)`
 
 	_, err := r.db.DB.ExecContext(ctx, query,
-		uuid.New(), userID, token, expiresAt, time.Now())
+		uuid.New(), userID, tokenHash, expiresAt, time.Now())
 	if err != nil {
 		return fmt.Errorf("failed to store refresh token: %w", err)
 	}
@@ -38,14 +38,14 @@ func (r *TokenDBRepository) storeRefreshToken(ctx context.Context, userID uuid.U
 }
 
 // getRefreshToken retrieves a refresh token from the database
-func (r *TokenDBRepository) getRefreshToken(ctx context.Context, token string) (*ports.RefreshToken, error) {
+func (r *TokenDBRepository) getRefreshToken(ctx context.Context, tokenHash string) (*ports.RefreshToken, error) {
 	var refreshToken ports.RefreshToken
 	query := `
-		SELECT id, user_id, token, expires_at, created_at
+		SELECT id, user_id, token_hash, expires_at, created_at
 		FROM refresh_tokens 
-		WHERE token = $1 AND expires_at > NOW()`
+		WHERE token_hash = $1 AND expires_at > NOW()`
 
-	err := r.db.DB.GetContext(ctx, &refreshToken, query, token)
+	err := r.db.DB.GetContext(ctx, &refreshToken, query, tokenHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("refresh token not found or expired")
@@ -57,10 +57,10 @@ func (r *TokenDBRepository) getRefreshToken(ctx context.Context, token string) (
 }
 
 // deleteRefreshToken deletes a specific refresh token from the database
-func (r *TokenDBRepository) deleteRefreshToken(ctx context.Context, token string) error {
-	query := `DELETE FROM refresh_tokens WHERE token = $1`
+func (r *TokenDBRepository) deleteRefreshToken(ctx context.Context, tokenHash string) error {
+	query := `DELETE FROM refresh_tokens WHERE token_hash = $1`
 
-	_, err := r.db.DB.ExecContext(ctx, query, token)
+	_, err := r.db.DB.ExecContext(ctx, query, tokenHash)
 	if err != nil {
 		return fmt.Errorf("failed to delete refresh token: %w", err)
 	}
@@ -86,14 +86,14 @@ func (r *TokenDBRepository) deleteUserTokens(ctx context.Context, userID uuid.UU
 }
 
 // isTokenBlacklisted checks if a token is blacklisted in the database
-func (r *TokenDBRepository) isTokenBlacklisted(ctx context.Context, token string) (bool, error) {
+func (r *TokenDBRepository) isTokenBlacklisted(ctx context.Context, tokenHash string) (bool, error) {
 	var count int
 	query := `
 		SELECT COUNT(*)
 		FROM blacklisted_tokens 
-		WHERE token = $1 AND expires_at > NOW()`
+		WHERE token_hash = $1 AND expires_at > NOW()`
 
-	err := r.db.DB.GetContext(ctx, &count, query, token)
+	err := r.db.DB.GetContext(ctx, &count, query, tokenHash)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if token is blacklisted: %w", err)
 	}
@@ -102,14 +102,14 @@ func (r *TokenDBRepository) isTokenBlacklisted(ctx context.Context, token string
 }
 
 // blacklistToken adds a token to the blacklist in the database
-func (r *TokenDBRepository) blacklistToken(ctx context.Context, userID uuid.UUID, token string, expiresAt time.Time) error {
+func (r *TokenDBRepository) blacklistToken(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
 	query := `
-		INSERT INTO blacklisted_tokens (id, user_id, token, expires_at, created_at, reason)
+		INSERT INTO blacklisted_tokens (id, user_id, token_hash, expires_at, created_at, reason)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (token) DO NOTHING`
+		ON CONFLICT (token_hash) DO NOTHING`
 
 	_, err := r.db.DB.ExecContext(ctx, query,
-		uuid.New(), userID, token, expiresAt, time.Now(), "logout")
+		uuid.New(), userID, tokenHash, expiresAt, time.Now(), "logout")
 	if err != nil {
 		return fmt.Errorf("failed to blacklist token: %w", err)
 	}

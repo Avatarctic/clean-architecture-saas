@@ -21,7 +21,6 @@ const (
 	keyTargetUser      ctxKey = "target_user"
 	keyCurrentUser     ctxKey = "current_user"
 	keyAuditEnabled    ctxKey = "audit_enabled"
-	keyJWTTenantID     ctxKey = "jwt_tenant_id"
 )
 
 func SetTenant(c echo.Context, t *tenant.Tenant) { c.Set(string(keyTenant), t) }

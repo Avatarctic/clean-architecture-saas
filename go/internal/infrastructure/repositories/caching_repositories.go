@@ -169,7 +169,7 @@ func (c *CachingTenantRepository) List(ctx context.Context, limit, offset int) (
 		}
 		return c.inner.List(ctx, cnt, 0)
 	}
-	all, err := loadFullListWithSingleflight[*tenant.Tenant](c.cache, ctx, "tenants:all", "tenants:all", "tenants:count", c.ttl, loader)
+	all, err := loadFullListWithSingleflight(c.cache, ctx, "tenants:all", "tenants:all", "tenants:count", c.ttl, loader)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +283,7 @@ func (c *CachingUserRepository) List(ctx context.Context, tenantID uuid.UUID, li
 		}
 		return c.inner.List(ctx, tenantID, cnt, 0)
 	}
-	all, err := loadFullListWithSingleflight[*user.User](c.cache, ctx, listKey, listKey, countKey, c.ttl, loader)
+	all, err := loadFullListWithSingleflight(c.cache, ctx, listKey, listKey, countKey, c.ttl, loader)
 	if err != nil {
 		return nil, err
 	}
@@ -395,7 +395,7 @@ func (c *CachingFeatureFlagRepository) List(ctx context.Context, limit, offset i
 		}
 		return c.inner.List(ctx, cnt, 0)
 	}
-	all, err := loadFullListWithSingleflight[*feature.FeatureFlag](c.cache, ctx, "features:all", "features:all", "features:count", c.ttl, loader)
+	all, err := loadFullListWithSingleflight(c.cache, ctx, "features:all", "features:all", "features:count", c.ttl, loader)
 	if err != nil {
 		return nil, err
 	}
