@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"time"
 
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/auth"
@@ -25,15 +27,22 @@ func NewTokenRepository(dbRepo *TokenDBRepository, redisRepo *TokenRedisReposito
 
 // Refresh token and blacklisting methods - delegate to database repository
 func (r *TokenRepository) StoreRefreshToken(ctx context.Context, userID uuid.UUID, token string, expiresAt time.Time) error {
-	return r.dbRepo.storeRefreshToken(ctx, userID, token, expiresAt)
+	// compute token hash (sha256) and store hash in DB
+	h := sha256.Sum256([]byte(token))
+	tokenHash := fmt.Sprintf("%x", h[:])
+	return r.dbRepo.storeRefreshToken(ctx, userID, tokenHash, expiresAt)
 }
 
 func (r *TokenRepository) GetRefreshToken(ctx context.Context, token string) (*ports.RefreshToken, error) {
-	return r.dbRepo.getRefreshToken(ctx, token)
+	h := sha256.Sum256([]byte(token))
+	tokenHash := fmt.Sprintf("%x", h[:])
+	return r.dbRepo.getRefreshToken(ctx, tokenHash)
 }
 
 func (r *TokenRepository) DeleteRefreshToken(ctx context.Context, token string) error {
-	return r.dbRepo.deleteRefreshToken(ctx, token)
+	h := sha256.Sum256([]byte(token))
+	tokenHash := fmt.Sprintf("%x", h[:])
+	return r.dbRepo.deleteRefreshToken(ctx, tokenHash)
 }
 
 func (r *TokenRepository) DeleteUserTokens(ctx context.Context, userID uuid.UUID) error {
@@ -41,11 +50,15 @@ func (r *TokenRepository) DeleteUserTokens(ctx context.Context, userID uuid.UUID
 }
 
 func (r *TokenRepository) IsTokenBlacklisted(ctx context.Context, token string) (bool, error) {
-	return r.dbRepo.isTokenBlacklisted(ctx, token)
+	h := sha256.Sum256([]byte(token))
+	tokenHash := fmt.Sprintf("%x", h[:])
+	return r.dbRepo.isTokenBlacklisted(ctx, tokenHash)
 }
 
 func (r *TokenRepository) BlacklistToken(ctx context.Context, userID uuid.UUID, token string, expiresAt time.Time) error {
-	return r.dbRepo.blacklistToken(ctx, userID, token, expiresAt)
+	h := sha256.Sum256([]byte(token))
+	tokenHash := fmt.Sprintf("%x", h[:])
+	return r.dbRepo.blacklistToken(ctx, userID, tokenHash, expiresAt)
 }
 
 // Token claims methods - delegate to Redis repository

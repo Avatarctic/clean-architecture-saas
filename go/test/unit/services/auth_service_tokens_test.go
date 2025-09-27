@@ -78,7 +78,10 @@ func TestRefreshToken_Success_ReplacesOldToken(t *testing.T) {
 	// prepare stored refresh token
 	oldRefresh := "oldrefresh"
 	now := time.Now()
-	stored := &ports.RefreshToken{ID: uuid.New(), UserID: uid, Token: oldRefresh, ExpiresAt: now.Add(time.Hour), CreatedAt: now}
+	// represent stored token by its hash (the composite repo will hash incoming token strings)
+	sum := sha256.Sum256([]byte(oldRefresh))
+	storedHash := fmt.Sprintf("%x", sum[:])
+	stored := &ports.RefreshToken{ID: uuid.New(), UserID: uid, TokenHash: storedHash, ExpiresAt: now.Add(time.Hour), CreatedAt: now}
 
 	var deletedRefresh string
 	var storedTokenClaimsCalled int
