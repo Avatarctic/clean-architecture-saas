@@ -1,6 +1,22 @@
 # Ignore local environment files
 .env
 
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_temp/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+ENV/
+
+# Database files
+dev.db
+*.db
+
 # Build artifacts
 bin/
 
@@ -13,5 +29,14 @@ bin/
 .DS_Store
 *.log
 
+# GitHub Copilot instructions
+.github/copilot-instructions.md
+
 # Vendor
 /go/vendor/
+
+# PyCharm / JetBrains IDE
+.idea/
+*.iml
+*.iws
+

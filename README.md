@@ -7,7 +7,7 @@ This repository contains production-oriented Clean Architecture SaaS templates i
 Current language templates
 
 - `go/` — A complete Go example using Clean Architecture principles: Echo HTTP server, PostgreSQL, Redis, migrations, integration tests, and GitHub Actions CI. See `go/README.md` for full setup and development instructions.
-- `python/` — Placeholder for a Python implementation following the same layout and CI conventions.
+- `python/` — Async FastAPI + SQLAlchemy async template. See `python/README.md` for quick start and layout.
 
 Why these templates
 
@@ -29,6 +29,14 @@ cd go
 ```powershell
 cp .env.example .env
 docker compose -f docker-compose.yml up -d
+```
+
+For the Python template, change into `python/` and run:
+
+```powershell
+cd python
+cp .env.example .env
+docker compose up -d
 ```
 
 CI and repository layout notes

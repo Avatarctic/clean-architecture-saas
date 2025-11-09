@@ -1,0 +1,19 @@
+[flake8]
+max-line-length = 100
+extend-ignore = E203, W503, E501
+exclude = .git,__pycache__,.venv,venv,build,dist,.pytest_cache,.mypy_cache
+max-complexity = 12
+per-file-ignores =
+    # Module level imports intentionally deferred for environment setup
+    src/app/composition.py:E402,C901
+    src/app/main.py:E402
+    tests/conftest.py:E402,C901
+    # Complex functions acceptable in these contexts
+    src/app/deps/auth.py:C901
+    src/app/deps/injection.py:C901
+    src/app/infrastructure/repositories/audit_repository.py:C901
+    src/app/infrastructure/repositories/caching/tenant_caching.py:C901
+    src/app/middleware/current_user.py:C901
+    src/app/routers/auth.py:C901
+    src/app/setup_db.py:C901
+    tests/fixtures/app_factory.py:C901
