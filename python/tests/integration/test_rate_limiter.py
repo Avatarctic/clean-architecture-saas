@@ -1,6 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 # test_app fixture provides the test client; create_test_app import not needed
 
 
@@ -12,7 +14,7 @@ async def test_rate_limiter_trips(test_app, monkeypatch):
     from tests.conftest import create_tenant_and_user_direct
 
     await create_tenant_and_user_direct(
-        AsyncSessionLocal, "rate_test", "u@example.com", "p", "admin"
+        AsyncSessionLocal, "rate_test", "u@example.com", TEST_PASSWORD, "admin"
     )
 
     # monkeypatch cache to a fresh InMemoryCache
@@ -31,7 +33,7 @@ async def test_rate_limiter_trips(test_app, monkeypatch):
         # Test rate limiting on login endpoint (changed from /auth/token to /auth/login)
         for i in range(12):
             resp = await ac.post(
-                "/api/v1/auth/login", json={"email": "u@example.com", "password": "p"}
+                "/api/v1/auth/login", json={"email": "u@example.com", "password": TEST_PASSWORD}
             )
             if i < 10:
                 assert resp.status_code != 429

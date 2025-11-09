@@ -109,7 +109,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 	}}
 
 	svc := impl.NewAuthService(ur, tenantRepo, tr, &config.JWTConfig{Secret: "s", AccessTokenTTL: time.Minute, RefreshTokenTTL: time.Hour, SessionTimeout: time.Hour}, nil)
-	_, err := svc.Login(context.Background(), &auth.LoginRequest{Email: "a@b.com", Password: "wrong"})
+	_, err := svc.Login(context.Background(), &auth.LoginRequest{Email: "a@b.com", Password: "WrongPass123!"})
 	if err == nil {
 		t.Fatalf("expected error for invalid credentials")
 	}

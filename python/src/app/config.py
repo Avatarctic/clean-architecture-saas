@@ -1,4 +1,4 @@
-from pydantic import BaseSettings
+from pydantic import BaseSettings, validator
 
 
 class Settings(BaseSettings):
@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     db_host: str = "db"
     db_port: int = 5432
     db_user: str = "postgres"
-    db_password: str = "postgres"
+    db_password: str
     db_name: str = "saas_db"
     # Database connection pool settings
     # Increased from 5/10 to 20/30 for better concurrency under load
@@ -17,11 +17,12 @@ class Settings(BaseSettings):
     db_max_overflow: int = 30  # Additional connections beyond pool_size (total max: 50)
     db_pool_recycle: int = 3600  # Recycle connections after 1 hour
     db_pool_pre_ping: bool = True  # Verify connections before use
-    jwt_secret: str = "changeme"
+    # JWT secret - REQUIRED, must be strong (min 32 chars)
+    jwt_secret: str
     # Access token lifetime (seconds)
     access_token_ttl_seconds: int = 900  # 15 minutes
-    # Refresh token lifetime (seconds). Default: 7 days
-    refresh_token_ttl_seconds: int = 604800
+    # Refresh token lifetime (seconds). Default: 24 hours
+    refresh_token_ttl_seconds: int = 86400
     # Background cleanup interval for refresh tokens (seconds). Default daily.
     refresh_token_cleanup_interval_seconds: int = 86400
     # When purging revoked tokens, keep revoked tokens at least this many seconds (default 7 days).
@@ -34,6 +35,19 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     # Redis
     redis_url: str = ""
+    # CORS settings
+    allowed_origins: str = "http://localhost:3000"  # Comma-separated list
+    # Security
+    environment: str = "development"  # development, staging, production
+
+    @validator("jwt_secret")
+    def validate_jwt_secret(cls, v):
+        if len(v) < 32:
+            raise ValueError(
+                "JWT_SECRET must be at least 32 characters for security. "
+                "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        return v
 
     class Config:
         env_file = ".env"
@@ -41,4 +55,4 @@ class Settings(BaseSettings):
 
 
 # module-level settings instance for convenience across the app
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

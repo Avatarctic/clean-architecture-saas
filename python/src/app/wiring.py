@@ -64,12 +64,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     performed by the composition root at runtime.
     """
     if settings is None:
-        settings = Settings()
+        settings = Settings()  # type: ignore[call-arg]
 
     app = _create_minimal_app()
 
     # Register routers and middleware (same as main) so tests that call
     # create_app() receive an app with all routes available.
+    from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
 
     from .exceptions import DuplicateError
@@ -98,9 +99,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # tenant status enforcement and current-user resolution are handled by
     # CurrentUserMiddleware which runs early in the request lifecycle.
     from .middleware.current_user import CurrentUserMiddleware
+    from .middleware.https_redirect import HTTPSRedirectMiddleware
+    from .middleware.security_headers import SecurityHeadersMiddleware
 
+    # Add security middleware (order matters - these run in reverse order)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(HTTPSRedirectMiddleware, environment=settings.environment)
     app.add_middleware(CurrentUserMiddleware)
     app.add_middleware(MetricsMiddleware)
+
+    # CORS middleware - must be added after other middleware
+    origins = [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+        max_age=600,  # Cache preflight requests for 10 minutes
+    )
 
     @app.get("/metrics")
     async def _metrics():

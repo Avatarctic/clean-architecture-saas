@@ -74,7 +74,7 @@ services:
       # Redis
       REDIS_URL: "redis://redis:6379/0"
       # JWT
-      JWT_SECRET: "test-secret-key"
+      JWT_SECRET: "ci-test-jwt-secret-min-32-chars-long-for-security"
       ACCESS_TOKEN_TTL_SECONDS: "900"
       REFRESH_TOKEN_TTL_SECONDS: "604800"
       # Cache
@@ -111,7 +111,7 @@ services:
     environment:
       DATABASE_URL: "postgresql+asyncpg://postgres:postgres@db:5432/test_db"
       REDIS_URL: "redis://redis:6379/0"
-      JWT_SECRET: "test-secret-key"
+      JWT_SECRET: "ci-test-jwt-secret-min-32-chars-long-for-security"
       SENDGRID_API_KEY: "test-sendgrid-key"
       ENVIRONMENT: "test"
       LOG_LEVEL: "INFO"

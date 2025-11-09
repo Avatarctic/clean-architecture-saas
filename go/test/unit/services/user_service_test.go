@@ -56,7 +56,7 @@ func (m *emailServiceMock) SendEmailUpdateConfirmation(ctx context.Context, emai
 func TestCreateUser_DuplicateEmail(t *testing.T) {
 	ur := &tmocks.UserRepositoryMock{GetByEmailFn: func(ctx context.Context, email string) (*user.User, error) { return &user.User{Email: email}, nil }}
 	svc := impl.NewUserService(ur, &emailServiceMock{}, nil, nil, &emailTokenRepoMock{}, nil)
-	_, err := svc.CreateUser(context.Background(), &user.CreateUserRequest{Email: "a@b.com", Password: "p"}, uuid.New())
+	_, err := svc.CreateUser(context.Background(), &user.CreateUserRequest{Email: "a@b.com", Password: "TestPass123!"}, uuid.New())
 	if err == nil {
 		t.Fatalf("expected duplicate email error")
 	}
@@ -68,7 +68,7 @@ func TestCreateUser_Success(t *testing.T) {
 	es := &emailServiceMock{}
 	logger := logrus.New()
 	svc := impl.NewUserService(ur, es, nil, nil, etr, logger)
-	req := &user.CreateUserRequest{Email: "ok@x.com", Password: "pass1234", FirstName: "A", LastName: "B", Role: user.RoleMember}
+	req := &user.CreateUserRequest{Email: "ok@x.com", Password: "TestPass123!", FirstName: "A", LastName: "B", Role: user.RoleMember}
 	u, err := svc.CreateUser(context.Background(), req, uuid.New())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

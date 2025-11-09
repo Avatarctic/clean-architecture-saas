@@ -45,6 +45,13 @@ posix_path = _Path(_tmpfile.name).as_posix()
 # Force the test DATABASE_URL to the temp file so local env vars don't interfere
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{posix_path}"
 
+# Set required security environment variables for tests
+os.environ["JWT_SECRET"] = "test-jwt-secret-with-minimum-32-characters-for-security"
+os.environ["DB_PASSWORD"] = "test-db-password"
+
+# Test password that meets security requirements (12+ chars, complexity)
+TEST_PASSWORD = "TestPass123!"
+
 # CRITICAL: Set DATABASE_URL BEFORE importing app.main or any modules that might
 # create DB engines. The session-scoped fixture below will import app.main AFTER
 # this point, ensuring the test DB URL is respected.

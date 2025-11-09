@@ -19,7 +19,7 @@ from ...config import Settings
 
 class SendGridEmailSender:
     def __init__(self, api_key: Optional[str] = None, from_email: Optional[str] = None):
-        s = Settings()
+        s = Settings()  # type: ignore[call-arg]
         self.api_key = api_key or s.sendgrid_api_key
         self.from_email = from_email or s.email_from
         if SendGridAPIClient is None:
@@ -42,7 +42,7 @@ class SendGridEmailSender:
     async def send_verification(self, to_email: str, token: str) -> None:
         """Send account verification email containing a token link."""
         subject = "Verify your account"
-        s = Settings()
+        s = Settings()  # type: ignore[call-arg]
         url = f"{s.frontend_url}/verify?token={token}"
         html = f'<p>Please verify your account by clicking <a href="{url}">here</a></p>'
         await self._send(to_email, subject, html)
@@ -50,7 +50,7 @@ class SendGridEmailSender:
     async def send_password_reset(self, to_email: str, token: str) -> None:
         """Send password reset email containing a token link."""
         subject = "Reset your password"
-        s = Settings()
+        s = Settings()  # type: ignore[call-arg]
         url = f"{s.frontend_url}/reset-password?token={token}"
         html = f'<p>Reset your password <a href="{url}">here</a></p>'
         await self._send(to_email, subject, html)

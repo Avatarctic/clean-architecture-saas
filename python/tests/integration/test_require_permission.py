@@ -1,6 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 # test_app fixture provides the test client; create_test_app import not needed
 
 
@@ -30,7 +32,7 @@ async def test_protected_route_allowed(test_app, monkeypatch):
         AsyncSessionLocal,
         tenant_name="perm_test",
         email="permtest@example.com",
-        password="testpass",
+        password=TEST_PASSWORD,
         role="admin",  # admin role should have view_secret permission
     )
 
@@ -40,7 +42,7 @@ async def test_protected_route_allowed(test_app, monkeypatch):
     ) as aclient:
         # First login
         login_resp = await aclient.post(
-            "/api/v1/auth/login", json={"email": "permtest@example.com", "password": "testpass"}
+            "/api/v1/auth/login", json={"email": "permtest@example.com", "password": TEST_PASSWORD}
         )
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]

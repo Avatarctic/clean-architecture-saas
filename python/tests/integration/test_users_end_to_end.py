@@ -3,12 +3,14 @@ import hashlib
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 @pytest.mark.asyncio
 async def test_users_real_http_flow_and_session_cache(test_app, monkeypatch):
     client, engine, AsyncSessionLocal = test_app
     email = "realflow@example.com"
-    password = "pass"
+    password = TEST_PASSWORD
 
     # Create tenant and user directly (register endpoint was removed)
     from tests.conftest import create_tenant_and_user_direct
@@ -82,7 +84,7 @@ async def test_users_real_http_flow_and_session_cache(test_app, monkeypatch):
                 "/api/v1/users",
                 json={
                     "email": "newuser@example.com",
-                    "password": "p",
+                    "password": TEST_PASSWORD,
                     "role": "guest",
                 },
                 headers=headers,
@@ -107,7 +109,9 @@ async def test_users_real_http_flow_and_session_cache(test_app, monkeypatch):
 async def test_role_hierarchy_denies_creating_higher_role(test_app, monkeypatch):
     client, engine, AsyncSessionLocal = test_app
     email = "roletest@example.com"
-    password = "pass"
+    from tests.conftest import TEST_PASSWORD
+
+    password = TEST_PASSWORD
 
     # Create tenant and user directly (register endpoint was removed)
     from tests.conftest import create_tenant_and_user_direct
@@ -162,7 +166,7 @@ async def test_role_hierarchy_denies_creating_higher_role(test_app, monkeypatch)
                 params={
                     "tenant_id": tid,
                     "email": "admintry@example.com",
-                    "password": "p",
+                    "password": TEST_PASSWORD,
                     "role": "admin",
                 },
                 headers=headers,

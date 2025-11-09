@@ -221,6 +221,10 @@ jobs:
           # Ensure service hostnames are correct for compose network
           sed -i 's/^DB_HOST=.*/DB_HOST=db/' .env || echo 'DB_HOST=db' >> .env
           sed -i 's/^REDIS_HOST=.*/REDIS_HOST=redis/' .env || echo 'REDIS_HOST=redis' >> .env
+          # Set DB password to match postgres service in docker-compose.ci.yml
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=postgres/' .env || echo 'DB_PASSWORD=postgres' >> .env
+          # Set JWT secret for CI (32+ chars requirement)
+          sed -i 's/^JWT_SECRET=.*/JWT_SECRET=ci-test-jwt-secret-min-32-chars-long/' .env || echo 'JWT_SECRET=ci-test-jwt-secret-min-32-chars-long' >> .env
           # Ensure TLS vars are empty in CI so the server runs HTTP when no certs are provided
           sed -i 's/^TLS_CERT_FILE=.*/TLS_CERT_FILE=/' .env || echo 'TLS_CERT_FILE=' >> .env
           sed -i 's/^TLS_KEY_FILE=.*/TLS_KEY_FILE=/' .env || echo 'TLS_KEY_FILE=' >> .env

@@ -6,6 +6,8 @@ Tests the read_own_tenant and update_tenant permissions.
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 @pytest.mark.asyncio
 async def test_get_own_tenant_with_read_own_tenant_permission(test_app):
@@ -19,7 +21,7 @@ async def test_get_own_tenant_with_read_own_tenant_permission(test_app):
         SessionLocal,
         tenant_name="own_tenant_test",
         email="own@example.com",
-        password="testpass",
+        password=TEST_PASSWORD,
         role="member",
     )
 
@@ -28,7 +30,7 @@ async def test_get_own_tenant_with_read_own_tenant_permission(test_app):
         transport=ASGITransport(app=client.app), base_url="http://test"
     ) as aclient:
         login_resp = await aclient.post(
-            "/api/v1/auth/login", json={"email": "own@example.com", "password": "testpass"}
+            "/api/v1/auth/login", json={"email": "own@example.com", "password": TEST_PASSWORD}
         )
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]
@@ -80,7 +82,7 @@ async def test_get_other_tenant_forbidden_with_read_own_tenant(test_app):
         SessionLocal,
         tenant_name="tenant1",
         email="user1@example.com",
-        password="testpass",
+        password=TEST_PASSWORD,
         role="member",
     )
 
@@ -109,7 +111,7 @@ async def test_get_other_tenant_forbidden_with_read_own_tenant(test_app):
         transport=ASGITransport(app=client.app), base_url="http://test"
     ) as aclient:
         login_resp = await aclient.post(
-            "/api/v1/auth/login", json={"email": "user1@example.com", "password": "testpass"}
+            "/api/v1/auth/login", json={"email": "user1@example.com", "password": TEST_PASSWORD}
         )
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]
@@ -159,7 +161,7 @@ async def test_update_tenant_settings(test_app):
         SessionLocal,
         tenant_name="update_test",
         email="update@example.com",
-        password="testpass",
+        password=TEST_PASSWORD,
         role="admin",
     )
 
@@ -168,7 +170,7 @@ async def test_update_tenant_settings(test_app):
         transport=ASGITransport(app=client.app), base_url="http://test"
     ) as aclient:
         login_resp = await aclient.post(
-            "/api/v1/auth/login", json={"email": "update@example.com", "password": "testpass"}
+            "/api/v1/auth/login", json={"email": "update@example.com", "password": TEST_PASSWORD}
         )
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]
@@ -232,7 +234,7 @@ async def test_update_tenant_status_forbidden(test_app):
         SessionLocal,
         tenant_name="status_test",
         email="status@example.com",
-        password="testpass",
+        password=TEST_PASSWORD,
         role="admin",
     )
 
@@ -241,7 +243,7 @@ async def test_update_tenant_status_forbidden(test_app):
         transport=ASGITransport(app=client.app), base_url="http://test"
     ) as aclient:
         login_resp = await aclient.post(
-            "/api/v1/auth/login", json={"email": "status@example.com", "password": "testpass"}
+            "/api/v1/auth/login", json={"email": "status@example.com", "password": TEST_PASSWORD}
         )
         assert login_resp.status_code == 200
         token = login_resp.json()["access_token"]

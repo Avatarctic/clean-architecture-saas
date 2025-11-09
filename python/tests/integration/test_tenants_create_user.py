@@ -3,6 +3,8 @@ from types import SimpleNamespace
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 @pytest.mark.asyncio
 async def test_create_user_in_tenant_returns_userresponse(monkeypatch, test_app):
@@ -74,7 +76,7 @@ async def test_create_user_in_tenant_returns_userresponse(monkeypatch, test_app)
     created = await tenants_router.create_user_in_tenant(
         1,
         "new@example.com",
-        "p",
+        TEST_PASSWORD,
         role="member",
         request=mock_request,
         current_user=mock_current_user,
@@ -98,6 +100,6 @@ async def test_users_endpoints_permission_failures(test_app):
         r = await http.get("/api/v1/users?tenant_id=1")
         assert r.status_code in (401, 403)
         r2 = await http.post(
-            "/api/v1/users", json={"tenant_id": 1, "email": "e@e.com", "password": "p"}
+            "/api/v1/users", json={"tenant_id": 1, "email": "e@e.com", "password": TEST_PASSWORD}
         )
         assert r2.status_code in (401, 403)

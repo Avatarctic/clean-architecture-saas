@@ -3,6 +3,8 @@ import hashlib
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 @pytest.mark.asyncio
 async def test_delete_session_by_hash_and_sessions_list(test_app):
@@ -13,7 +15,7 @@ async def test_delete_session_by_hash_and_sessions_list(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     await create_tenant_and_user_direct(
-        AsyncSessionLocal, "t_del", "del@example.com", "pass", "admin"
+        AsyncSessionLocal, "t_del", "del@example.com", TEST_PASSWORD, "admin"
     )
 
     async with AsyncClient(
@@ -22,7 +24,7 @@ async def test_delete_session_by_hash_and_sessions_list(test_app):
         # login (changed from /auth/token to /auth/login)
         r = await http.post(
             "/api/v1/auth/login",
-            json={"email": "del@example.com", "password": "pass"},
+            json={"email": "del@example.com", "password": TEST_PASSWORD},
         )
         assert r.status_code == 200
         tok = r.json()
@@ -49,7 +51,7 @@ async def test_delete_session_by_hash_and_sessions_list(test_app):
         # create another session to test users router delete (sessions router was removed)
         r = await http.post(
             "/api/v1/auth/login",
-            json={"email": "del@example.com", "password": "pass"},
+            json={"email": "del@example.com", "password": TEST_PASSWORD},
         )
         assert r.status_code == 200
         tok2 = r.json()

@@ -10,13 +10,15 @@ import (
 )
 
 type ServerConfig struct {
-	Host         string
-	Port         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
-	TLSCertFile  string
-	TLSKeyFile   string
+	Host           string
+	Port           string
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	IdleTimeout    time.Duration
+	TLSCertFile    string
+	TLSKeyFile     string
+	AllowedOrigins []string
+	Environment    string
 }
 
 type ServerDeps struct {

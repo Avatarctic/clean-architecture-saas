@@ -59,7 +59,7 @@ async def create_all(engine: AsyncEngine | None = None):
             )
 
             # Create fallback settings and use db module's create_engine helper
-            fallback_settings = Settings(database_url=sqlite_url)
+            fallback_settings = Settings(database_url=sqlite_url)  # type: ignore[call-arg]
             new_engine = db_mod.create_engine(fallback_settings)
             db_mod.create_sessionmaker(new_engine)
 

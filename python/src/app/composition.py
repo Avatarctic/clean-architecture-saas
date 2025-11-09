@@ -37,7 +37,7 @@ async def wire_app(app: FastAPI) -> WireResult:
     runs at the right time.
     """
     # instantiate Settings at runtime (avoid module-level side-effects)
-    settings = Settings()
+    settings = Settings()  # type: ignore[call-arg]
 
     # initialize redis client and email sender; assume adapters are available
     from .infrastructure.cache.redis_client import AioredisClient, InMemoryCache
@@ -115,7 +115,7 @@ async def wire_app(app: FastAPI) -> WireResult:
     try:
         from asyncio import create_task, sleep
 
-        settings = Settings()
+        settings = Settings()  # type: ignore[call-arg]
 
         async def _purge_loop():
             # create a dedicated session per purge iteration

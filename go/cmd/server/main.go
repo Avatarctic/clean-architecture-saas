@@ -129,13 +129,15 @@ func main() {
 
 	// Create server configuration
 	serverConfig := &httpserver.ServerConfig{
-		Host:         cfg.Server.Host,
-		Port:         cfg.Server.Port,
-		ReadTimeout:  cfg.Server.ReadTimeout,
-		WriteTimeout: cfg.Server.WriteTimeout,
-		IdleTimeout:  cfg.Server.IdleTimeout,
-		TLSCertFile:  cfg.Server.TLSCertFile,
-		TLSKeyFile:   cfg.Server.TLSKeyFile,
+		Host:           cfg.Server.Host,
+		Port:           cfg.Server.Port,
+		ReadTimeout:    cfg.Server.ReadTimeout,
+		WriteTimeout:   cfg.Server.WriteTimeout,
+		IdleTimeout:    cfg.Server.IdleTimeout,
+		TLSCertFile:    cfg.Server.TLSCertFile,
+		TLSKeyFile:     cfg.Server.TLSKeyFile,
+		AllowedOrigins: cfg.Server.AllowedOrigins,
+		Environment:    cfg.Server.Environment,
 	}
 
 	// Initialize HTTP server using ServerDeps for clearer wiring

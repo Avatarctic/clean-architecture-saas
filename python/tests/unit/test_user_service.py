@@ -27,7 +27,9 @@ async def test_create_and_authenticate_user():
     from passlib.context import CryptContext
 
     pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-    hashed = pwd_context.hash("password")
+    # Use a password that meets the new 12+ character security requirement with complexity
+    secure_password = "SecurePass123!"
+    hashed = pwd_context.hash(secure_password)
     # mock create to return a user with an id
     mock_repo.create.return_value = User(
         id=1, tenant_id=1, email="a@example.com", hashed_password=hashed
@@ -38,10 +40,10 @@ async def test_create_and_authenticate_user():
     )
 
     svc = UserService(mock_repo)
-    user = await svc.create_user(1, "a@example.com", "password")
+    user = await svc.create_user(1, "a@example.com", secure_password)
     assert user.id == 1
 
     # rely on correct bcrypt hash so pwd_context.verify in service passes
-    auth = await svc.authenticate_global("a@example.com", "password")
+    auth = await svc.authenticate_global("a@example.com", secure_password)
     assert auth is not None
     assert auth.email == "a@example.com"

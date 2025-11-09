@@ -3,6 +3,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 async def create_user_with_permission_perms(
     AsyncSessionLocal, tenant_name, email, password, app_cache=None
@@ -44,7 +46,11 @@ async def test_list_all_permissions(test_app):
 
     # Create admin user
     await create_user_with_permission_perms(
-        AsyncSessionLocal, "perm1", "perm1@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal,
+        "perm1",
+        "perm1@example.com",
+        TEST_PASSWORD,
+        client.app.state.cache_client,
     )
 
     async with AsyncClient(
@@ -52,7 +58,7 @@ async def test_list_all_permissions(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "perm1@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "perm1@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -80,7 +86,11 @@ async def test_list_role_permissions(test_app):
 
     # Create admin user
     await create_user_with_permission_perms(
-        AsyncSessionLocal, "perm2", "perm2@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal,
+        "perm2",
+        "perm2@example.com",
+        TEST_PASSWORD,
+        client.app.state.cache_client,
     )
 
     async with AsyncClient(
@@ -88,7 +98,7 @@ async def test_list_role_permissions(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "perm2@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "perm2@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -111,7 +121,11 @@ async def test_set_role_permissions(test_app):
 
     # Create admin user
     await create_user_with_permission_perms(
-        AsyncSessionLocal, "perm3", "perm3@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal,
+        "perm3",
+        "perm3@example.com",
+        TEST_PASSWORD,
+        client.app.state.cache_client,
     )
 
     async with AsyncClient(
@@ -119,7 +133,7 @@ async def test_set_role_permissions(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "perm3@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "perm3@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -156,7 +170,11 @@ async def test_add_permission_to_role(test_app):
 
     # Create admin user
     await create_user_with_permission_perms(
-        AsyncSessionLocal, "perm4", "perm4@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal,
+        "perm4",
+        "perm4@example.com",
+        TEST_PASSWORD,
+        client.app.state.cache_client,
     )
 
     async with AsyncClient(
@@ -164,7 +182,7 @@ async def test_add_permission_to_role(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "perm4@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "perm4@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -187,7 +205,11 @@ async def test_remove_permission_from_role(test_app):
 
     # Create admin user
     await create_user_with_permission_perms(
-        AsyncSessionLocal, "perm5", "perm5@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal,
+        "perm5",
+        "perm5@example.com",
+        TEST_PASSWORD,
+        client.app.state.cache_client,
     )
 
     async with AsyncClient(
@@ -195,7 +217,7 @@ async def test_remove_permission_from_role(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "perm5@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "perm5@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -240,7 +262,11 @@ async def test_add_invalid_permission_to_role(test_app):
 
     # Create admin user
     await create_user_with_permission_perms(
-        AsyncSessionLocal, "perm6", "perm6@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal,
+        "perm6",
+        "perm6@example.com",
+        TEST_PASSWORD,
+        client.app.state.cache_client,
     )
 
     async with AsyncClient(
@@ -248,7 +274,7 @@ async def test_add_invalid_permission_to_role(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "perm6@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "perm6@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]

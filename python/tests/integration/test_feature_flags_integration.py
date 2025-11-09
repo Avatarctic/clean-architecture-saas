@@ -3,6 +3,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 async def grant_permissions(AsyncSessionLocal, user_id, permissions):
     """Helper to grant permissions to a user for testing."""
@@ -58,7 +60,7 @@ async def test_create_feature_flag_success(test_app):
 
     # Create user with feature flag permissions
     user_data = await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff1", "ff1@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff1", "ff1@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
     tenant_id = user_data["tenant_id"]
 
@@ -67,7 +69,7 @@ async def test_create_feature_flag_success(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ff1@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ff1@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -101,10 +103,10 @@ async def test_create_feature_flag_cross_tenant_forbidden(test_app):
 
     # Create two tenants with users
     await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff2", "ff2@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff2", "ff2@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
     user2_data = await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff3", "ff3@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff3", "ff3@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
     tenant2_id = user2_data["tenant_id"]
 
@@ -113,7 +115,7 @@ async def test_create_feature_flag_cross_tenant_forbidden(test_app):
     ) as http:
         # Login as user1
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ff2@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ff2@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -141,7 +143,7 @@ async def test_evaluate_feature_flag(test_app):
 
     # Create user and feature flag
     user_data = await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff4", "ff4@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff4", "ff4@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
     user_data["tenant_id"]
 
@@ -150,7 +152,7 @@ async def test_evaluate_feature_flag(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ff4@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ff4@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -196,7 +198,7 @@ async def test_update_feature_flag(test_app):
 
     # Create user and feature flag
     await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff5", "ff5@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff5", "ff5@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
 
     async with AsyncClient(
@@ -204,7 +206,7 @@ async def test_update_feature_flag(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ff5@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ff5@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -237,7 +239,7 @@ async def test_delete_feature_flag(test_app):
 
     # Create user and feature flag
     await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff6", "ff6@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff6", "ff6@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
 
     async with AsyncClient(
@@ -245,7 +247,7 @@ async def test_delete_feature_flag(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ff6@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ff6@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -272,7 +274,7 @@ async def test_list_feature_flags(test_app):
 
     # Create user and multiple feature flags
     user_data = await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff7", "ff7@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff7", "ff7@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
     tenant_id = user_data["tenant_id"]
 
@@ -281,7 +283,7 @@ async def test_list_feature_flags(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ff7@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ff7@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -321,7 +323,7 @@ async def test_evaluate_nonexistent_feature_flag(test_app):
 
     # Create user
     await create_user_with_ff_permissions(
-        AsyncSessionLocal, "ff8", "ff8@example.com", "pass", client.app.state.cache_client
+        AsyncSessionLocal, "ff8", "ff8@example.com", TEST_PASSWORD, client.app.state.cache_client
     )
 
     async with AsyncClient(
@@ -329,7 +331,7 @@ async def test_evaluate_nonexistent_feature_flag(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ff8@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ff8@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]

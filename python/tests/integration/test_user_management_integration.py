@@ -3,6 +3,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 async def create_user_with_user_mgmt_perms(
     AsyncSessionLocal, tenant_name, email, password, role="admin", app_cache=None
@@ -60,7 +62,12 @@ async def test_update_user(test_app):
 
     # Create admin user in tenant um1
     user1_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um1", "um1@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um1",
+        "um1@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     tenant_id = user1_data["tenant_id"]
 
@@ -75,7 +82,7 @@ async def test_update_user(test_app):
 
         user_svc = UserService(user_repo, None)
         created_user = await user_svc.create_user(
-            tenant_id, "um2@example.com", "pass", role="member"
+            tenant_id, "um2@example.com", TEST_PASSWORD, role="member"
         )
         await session.commit()
         user2_id = int(created_user.id)
@@ -99,7 +106,7 @@ async def test_update_user(test_app):
     ) as http:
         # Login as admin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um1@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um1@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -122,7 +129,12 @@ async def test_update_own_profile(test_app):
 
     # Create user
     user_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um2", "um3@example.com", "pass", "member", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um2",
+        "um3@example.com",
+        TEST_PASSWORD,
+        "member",
+        client.app.state.cache_client,
     )
     user_id = user_data["user_id"]
 
@@ -131,7 +143,7 @@ async def test_update_own_profile(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um3@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um3@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -152,7 +164,12 @@ async def test_change_user_password(test_app):
     # Create user
     # Create user
     user_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um3", "um4@example.com", "pass", "member", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um3",
+        "um4@example.com",
+        TEST_PASSWORD,
+        "member",
+        client.app.state.cache_client,
     )
     user_id = user_data["user_id"]
 
@@ -161,16 +178,17 @@ async def test_change_user_password(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um4@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um4@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
         headers = {"Authorization": f"Bearer {access_token}"}
 
         # Change password
+        new_password = "NewSecurePass123!"
         change_resp = await http.post(
             f"/api/v1/users/{user_id}/password",
-            json={"new_password": "newpass123"},
+            json={"new_password": new_password},
             headers=headers,
         )
         assert change_resp.status_code == 200
@@ -178,13 +196,13 @@ async def test_change_user_password(test_app):
 
         # Verify old password no longer works
         login_old = await http.post(
-            "/api/v1/auth/login", json={"email": "um4@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um4@example.com", "password": TEST_PASSWORD}
         )
         assert login_old.status_code == 401
 
         # Verify new password works
         login_new = await http.post(
-            "/api/v1/auth/login", json={"email": "um4@example.com", "password": "newpass123"}
+            "/api/v1/auth/login", json={"email": "um4@example.com", "password": new_password}
         )
         assert login_new.status_code == 200
 
@@ -196,7 +214,12 @@ async def test_change_user_email(test_app):
 
     # Create user
     user_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um4", "um5@example.com", "pass", "member", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um4",
+        "um5@example.com",
+        TEST_PASSWORD,
+        "member",
+        client.app.state.cache_client,
     )
     user_id = user_data["user_id"]
 
@@ -205,7 +228,7 @@ async def test_change_user_email(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um5@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um5@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -222,7 +245,7 @@ async def test_change_user_email(test_app):
 
         # Verify login with new email works
         login_new = await http.post(
-            "/api/v1/auth/login", json={"email": "um5_new@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um5_new@example.com", "password": TEST_PASSWORD}
         )
         assert login_new.status_code == 200
 
@@ -234,7 +257,12 @@ async def test_list_user_sessions(test_app):
 
     # Create user
     user_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um5", "um6@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um5",
+        "um6@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     user_id = user_data["user_id"]
 
@@ -243,7 +271,7 @@ async def test_list_user_sessions(test_app):
     ) as http:
         # Login to create a session
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um6@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um6@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -265,7 +293,12 @@ async def test_delete_user_session(test_app):
 
     # Create user
     user_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um6", "um7@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um6",
+        "um7@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     user_id = user_data["user_id"]
 
@@ -274,7 +307,7 @@ async def test_delete_user_session(test_app):
     ) as http:
         # Login to create a session
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um7@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um7@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         refresh_token = r.json()["refresh_token"]
@@ -300,7 +333,12 @@ async def test_delete_all_user_sessions(test_app):
 
     # Create user
     user_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um7", "um8@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um7",
+        "um8@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     user_id = user_data["user_id"]
 
@@ -309,7 +347,7 @@ async def test_delete_all_user_sessions(test_app):
     ) as http:
         # Login to create sessions
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um8@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um8@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -328,10 +366,20 @@ async def test_cannot_update_user_in_different_tenant(test_app):
 
     # Create users in different tenants
     await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um8", "um9@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um8",
+        "um9@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     user2_data = await create_user_with_user_mgmt_perms(
-        AsyncSessionLocal, "um9", "um10@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "um9",
+        "um10@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     user2_id = user2_data["user_id"]
 
@@ -340,7 +388,7 @@ async def test_cannot_update_user_in_different_tenant(test_app):
     ) as http:
         # Login as user1
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "um9@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "um9@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -363,5 +411,7 @@ async def test_change_password_without_auth_fails(test_app):
         transport=ASGITransport(app=client.app), base_url="http://testserver"
     ) as http:
         # Try to change password without auth
-        change_resp = await http.post("/api/v1/users/1/password", json={"new_password": "newpass"})
+        change_resp = await http.post(
+            "/api/v1/users/1/password", json={"new_password": "NewSecurePass123!"}
+        )
         assert change_resp.status_code == 401

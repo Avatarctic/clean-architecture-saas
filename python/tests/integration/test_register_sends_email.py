@@ -3,6 +3,8 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 class SpySender:
     def __init__(self):
@@ -27,7 +29,9 @@ async def test_resend_verification_triggers_email(test_app):
     tenant_name = f"t-{unique}"
     email = f"{unique}@example.com"
 
-    await create_tenant_and_user_direct(AsyncSessionLocal, tenant_name, email, "pass123", "admin")
+    await create_tenant_and_user_direct(
+        AsyncSessionLocal, tenant_name, email, TEST_PASSWORD, "admin"
+    )
 
     sender = SpySender()
 

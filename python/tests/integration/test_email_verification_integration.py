@@ -3,6 +3,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 def create_email_token_service(cache):
     """Helper to create EmailTokenService with proper repository using the app's cache."""
@@ -57,7 +59,7 @@ async def test_verify_email_with_token(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     user_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "ev1", "ev1@example.com", "pass", "member"
+        AsyncSessionLocal, "ev1", "ev1@example.com", TEST_PASSWORD, "member"
     )
     user_id = user_data["user_id"]
 
@@ -98,7 +100,7 @@ async def test_verify_email_post_method(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     user_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "ev2", "ev2@example.com", "pass", "member"
+        AsyncSessionLocal, "ev2", "ev2@example.com", TEST_PASSWORD, "member"
     )
     user_id = user_data["user_id"]
 
@@ -122,7 +124,7 @@ async def test_resend_verification_email(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     await create_tenant_and_user_direct(
-        AsyncSessionLocal, "ev3", "ev3@example.com", "pass", "member"
+        AsyncSessionLocal, "ev3", "ev3@example.com", TEST_PASSWORD, "member"
     )
 
     async with AsyncClient(
@@ -130,7 +132,7 @@ async def test_resend_verification_email(test_app):
     ) as http:
         # Login
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "ev3@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "ev3@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -167,7 +169,7 @@ async def test_confirm_email_update_with_token(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     user_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "ev4", "ev4@example.com", "pass", "member"
+        AsyncSessionLocal, "ev4", "ev4@example.com", TEST_PASSWORD, "member"
     )
     user_id = user_data["user_id"]
 
@@ -194,7 +196,7 @@ async def test_confirm_email_update_post_method(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     user_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "ev5", "ev5@example.com", "pass", "member"
+        AsyncSessionLocal, "ev5", "ev5@example.com", TEST_PASSWORD, "member"
     )
     user_id = user_data["user_id"]
 
@@ -232,7 +234,7 @@ async def test_email_token_expiration(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     user_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "ev6", "ev6@example.com", "pass", "member"
+        AsyncSessionLocal, "ev6", "ev6@example.com", TEST_PASSWORD, "member"
     )
     user_id = user_data["user_id"]
 
@@ -266,7 +268,7 @@ async def test_email_token_cannot_be_reused(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     user_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "ev7", "ev7@example.com", "pass", "member"
+        AsyncSessionLocal, "ev7", "ev7@example.com", TEST_PASSWORD, "member"
     )
     user_id = user_data["user_id"]
 

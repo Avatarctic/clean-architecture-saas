@@ -108,7 +108,7 @@ func TestAuthEndpoints_ServerIntegration_MockServices(t *testing.T) {
 		return resp, respBody, nil
 	}
 
-	loginReq := map[string]string{"email": "x@x.com", "password": "pass"}
+	loginReq := map[string]string{"email": "x@x.com", "password": "TestPass123!"}
 	resp, body, err := doJSON(http.MethodPost, "/api/v1/auth/login", loginReq, "")
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)

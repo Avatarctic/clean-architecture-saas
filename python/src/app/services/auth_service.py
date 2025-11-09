@@ -187,5 +187,5 @@ def create_default_auth_service() -> AuthService:
     # create a runtime Settings instance when someone actually requests the service
     from ..config import Settings
 
-    s = Settings()
+    s = Settings()  # type: ignore[call-arg]
     return AuthService(s.jwt_secret, s.access_token_ttl_seconds)

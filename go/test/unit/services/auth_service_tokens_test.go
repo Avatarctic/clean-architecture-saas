@@ -26,7 +26,7 @@ import (
 // Test: Login success stores token claims and refresh token
 func TestLogin_Success_StoresClaimsAndRefreshToken(t *testing.T) {
 	// prepare
-	passHash, _ := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.DefaultCost)
+	passHash, _ := bcrypt.GenerateFromPassword([]byte("TestPass123!"), bcrypt.DefaultCost)
 	uid := uuid.New()
 	tid := uuid.New()
 	usr := &user.User{ID: uid, Email: "a@b.com", PasswordHash: string(passHash), IsActive: true, TenantID: tid}
@@ -56,7 +56,7 @@ func TestLogin_Success_StoresClaimsAndRefreshToken(t *testing.T) {
 	jwtCfg := &config.JWTConfig{Secret: "s", AccessTokenTTL: time.Minute, RefreshTokenTTL: time.Hour, SessionTimeout: time.Hour}
 	svc := impl.NewAuthService(ur, tenantR, tr, jwtCfg, nil)
 
-	tokens, err := svc.Login(context.Background(), &auth.LoginRequest{Email: "a@b.com", Password: "pass"})
+	tokens, err := svc.Login(context.Background(), &auth.LoginRequest{Email: "a@b.com", Password: "TestPass123!"})
 	require.NoError(t, err)
 	require.NotNil(t, tokens)
 	require.NotEmpty(t, tokens.AccessToken)

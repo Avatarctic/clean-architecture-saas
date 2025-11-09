@@ -20,14 +20,16 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host         string
-	Port         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
-	TLSCertFile  string
-	TLSKeyFile   string
-	BaseDomain   string
+	Host           string
+	Port           string
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	IdleTimeout    time.Duration
+	TLSCertFile    string
+	TLSKeyFile     string
+	BaseDomain     string
+	AllowedOrigins []string
+	Environment    string
 }
 
 type DatabaseConfig struct {
@@ -93,14 +95,16 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Host:         getEnv("SERVER_HOST", "0.0.0.0"),
-			Port:         getEnv("SERVER_PORT", "8080"),
-			ReadTimeout:  getDurationEnv("SERVER_READ_TIMEOUT", 30*time.Second),
-			WriteTimeout: getDurationEnv("SERVER_WRITE_TIMEOUT", 30*time.Second),
-			IdleTimeout:  getDurationEnv("SERVER_IDLE_TIMEOUT", 120*time.Second),
-			TLSCertFile:  getEnv("TLS_CERT_FILE", ""),
-			TLSKeyFile:   getEnv("TLS_KEY_FILE", ""),
-			BaseDomain:   getEnvRequired("BASE_DOMAIN"),
+			Host:           getEnv("SERVER_HOST", "0.0.0.0"),
+			Port:           getEnv("SERVER_PORT", "8080"),
+			ReadTimeout:    getDurationEnv("SERVER_READ_TIMEOUT", 30*time.Second),
+			WriteTimeout:   getDurationEnv("SERVER_WRITE_TIMEOUT", 30*time.Second),
+			IdleTimeout:    getDurationEnv("SERVER_IDLE_TIMEOUT", 120*time.Second),
+			TLSCertFile:    getEnv("TLS_CERT_FILE", ""),
+			TLSKeyFile:     getEnv("TLS_KEY_FILE", ""),
+			BaseDomain:     getEnvRequired("BASE_DOMAIN"),
+			AllowedOrigins: getSliceEnv("ALLOWED_ORIGINS", []string{"http://localhost:3000"}),
+			Environment:    getEnv("ENVIRONMENT", "development"),
 		},
 		Database: DatabaseConfig{
 			Host:            getEnv("DB_HOST", "localhost"),
@@ -117,7 +121,7 @@ func Load() (*Config, error) {
 		JWT: JWTConfig{
 			Secret:          getEnvRequired("JWT_SECRET"),
 			AccessTokenTTL:  getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
-			RefreshTokenTTL: getDurationEnv("JWT_REFRESH_TTL", 24*7*time.Hour),
+			RefreshTokenTTL: getDurationEnv("JWT_REFRESH_TTL", 24*time.Hour),
 			SessionTimeout:  getDurationEnv("SESSION_TIMEOUT", 2*time.Hour), // Force logout after 2 hours of inactivity
 		},
 		Email: EmailConfig{
@@ -206,4 +210,59 @@ func getFloatEnv(key string, defaultValue float64) float64 {
 		}
 	}
 	return defaultValue
+}
+
+func getSliceEnv(key string, defaultValue []string) []string {
+	if value := os.Getenv(key); value != "" {
+		// Split by comma and trim spaces
+		var result []string
+		for _, v := range splitAndTrim(value, ",") {
+			if v != "" {
+				result = append(result, v)
+			}
+		}
+		if len(result) > 0 {
+			return result
+		}
+	}
+	return defaultValue
+}
+
+func splitAndTrim(s, sep string) []string {
+	parts := []string{}
+	for _, part := range splitString(s, sep) {
+		trimmed := trimSpace(part)
+		parts = append(parts, trimmed)
+	}
+	return parts
+}
+
+func splitString(s, sep string) []string {
+	// Simple string split implementation
+	if s == "" {
+		return []string{}
+	}
+	var result []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if i+len(sep) <= len(s) && s[i:i+len(sep)] == sep {
+			result = append(result, s[start:i])
+			start = i + len(sep)
+			i += len(sep) - 1
+		}
+	}
+	result = append(result, s[start:])
+	return result
+}
+
+func trimSpace(s string) string {
+	start := 0
+	end := len(s)
+	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
+		start++
+	}
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
+		end--
+	}
+	return s[start:end]
 }

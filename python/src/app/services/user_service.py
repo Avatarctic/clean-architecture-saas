@@ -20,6 +20,7 @@ from ..domain.user import User
 from ..logging_config import get_logger
 from ..ports.repositories import EmailTokenRepository, UserRepository
 from ..services.email_token_service import EmailTokenService
+from ..utils.password import validate_password_strength
 
 logger = get_logger(__name__)
 
@@ -42,6 +43,11 @@ class UserService:
         first_name: str | None = None,
         last_name: str | None = None,
     ) -> User:
+        # Validate password strength
+        is_valid, error_msg = validate_password_strength(password)
+        if not is_valid:
+            raise ValueError(error_msg)
+
         hashed = pwd_context.hash(password)
         user = User(
             id=None,
@@ -106,6 +112,11 @@ class UserService:
         return True
 
     async def reset_password(self, token: str, new_password: str) -> bool:
+        # Validate password strength
+        is_valid, error_msg = validate_password_strength(new_password)
+        if not is_valid:
+            raise ValueError(error_msg)
+
         if self.email_tokens_repo is None:
             return False
         token_svc = EmailTokenService(self.email_tokens_repo)
@@ -164,6 +175,12 @@ class UserService:
         user = await self.user_repo.get_by_id(user_id)
         if not user:
             return False
+
+        # Validate new password strength
+        is_valid, error_msg = validate_password_strength(new_password)
+        if not is_valid:
+            raise ValueError(error_msg)
+
         if not pwd_context.verify(old_password, user.hashed_password):
             return False
         hashed = pwd_context.hash(new_password)

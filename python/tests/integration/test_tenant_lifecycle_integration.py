@@ -3,6 +3,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from tests.conftest import TEST_PASSWORD
+
 
 async def create_user_with_tenant_perms(
     AsyncSessionLocal, tenant_name, email, password, role="admin", app_cache=None
@@ -45,17 +47,27 @@ async def test_list_all_tenants(test_app):
 
     # Create multiple tenants
     await create_user_with_tenant_perms(
-        AsyncSessionLocal, "tl1", "tl1@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "tl1",
+        "tl1@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     await create_user_with_tenant_perms(
-        AsyncSessionLocal, "tl2", "tl2@example.com", "pass", "admin", client.app.state.cache_client
+        AsyncSessionLocal,
+        "tl2",
+        "tl2@example.com",
+        TEST_PASSWORD,
+        "admin",
+        client.app.state.cache_client,
     )
     # Create superadmin user
     await create_user_with_tenant_perms(
         AsyncSessionLocal,
         "platform",
         "superadmin@example.com",
-        "pass",
+        TEST_PASSWORD,
         "super_admin",
         client.app.state.cache_client,
     )
@@ -65,7 +77,8 @@ async def test_list_all_tenants(test_app):
     ) as http:
         # Login as superadmin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "superadmin@example.com", "password": "pass"}
+            "/api/v1/auth/login",
+            json={"email": "superadmin@example.com", "password": TEST_PASSWORD},
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -89,11 +102,11 @@ async def test_suspend_tenant(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     tenant_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "tl3", "tl3@example.com", "pass", "admin"
+        AsyncSessionLocal, "tl3", "tl3@example.com", TEST_PASSWORD, "admin"
     )
     tenant_id = tenant_data["tenant_id"]
     sa_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "platform", "sa2@example.com", "pass", "super_admin"
+        AsyncSessionLocal, "platform", "sa2@example.com", TEST_PASSWORD, "super_admin"
     )
     sa_user_id = sa_data["user_id"]
 
@@ -114,7 +127,7 @@ async def test_suspend_tenant(test_app):
     ) as http:
         # Login as superadmin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "sa2@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "sa2@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -138,7 +151,7 @@ async def test_activate_suspended_tenant(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     tenant_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "tl4", "tl4@example.com", "pass", "admin"
+        AsyncSessionLocal, "tl4", "tl4@example.com", TEST_PASSWORD, "admin"
     )
     tenant_id = tenant_data["tenant_id"]
 
@@ -149,7 +162,7 @@ async def test_activate_suspended_tenant(test_app):
         await session.commit()
 
     sa_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "platform", "sa3@example.com", "pass", "super_admin"
+        AsyncSessionLocal, "platform", "sa3@example.com", TEST_PASSWORD, "super_admin"
     )
     sa_user_id = sa_data["user_id"]
 
@@ -170,7 +183,7 @@ async def test_activate_suspended_tenant(test_app):
     ) as http:
         # Login as superadmin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "sa3@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "sa3@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -193,11 +206,11 @@ async def test_cancel_tenant(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     tenant_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "tl5", "tl5@example.com", "pass", "admin"
+        AsyncSessionLocal, "tl5", "tl5@example.com", TEST_PASSWORD, "admin"
     )
     tenant_id = tenant_data["tenant_id"]
     sa_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "platform", "sa4@example.com", "pass", "super_admin"
+        AsyncSessionLocal, "platform", "sa4@example.com", TEST_PASSWORD, "super_admin"
     )
     sa_user_id = sa_data["user_id"]
 
@@ -218,7 +231,7 @@ async def test_cancel_tenant(test_app):
     ) as http:
         # Login as superadmin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "sa4@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "sa4@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -242,7 +255,7 @@ async def test_cannot_activate_canceled_tenant(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     tenant_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "tl6", "tl6@example.com", "pass", "admin"
+        AsyncSessionLocal, "tl6", "tl6@example.com", TEST_PASSWORD, "admin"
     )
     tenant_id = tenant_data["tenant_id"]
 
@@ -253,7 +266,7 @@ async def test_cannot_activate_canceled_tenant(test_app):
         await session.commit()
 
     sa_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "platform", "sa5@example.com", "pass", "super_admin"
+        AsyncSessionLocal, "platform", "sa5@example.com", TEST_PASSWORD, "super_admin"
     )
     sa_user_id = sa_data["user_id"]
 
@@ -274,7 +287,7 @@ async def test_cannot_activate_canceled_tenant(test_app):
     ) as http:
         # Login as superadmin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "sa5@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "sa5@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -316,7 +329,7 @@ async def test_regular_user_cannot_suspend_tenant(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     tenant_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "tl7", "tl7@example.com", "pass", "member"
+        AsyncSessionLocal, "tl7", "tl7@example.com", TEST_PASSWORD, "member"
     )
     tenant_id = tenant_data["tenant_id"]
 
@@ -325,7 +338,7 @@ async def test_regular_user_cannot_suspend_tenant(test_app):
     ) as http:
         # Login as regular user
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "tl7@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "tl7@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -347,7 +360,7 @@ async def test_suspend_nonexistent_tenant(test_app):
         AsyncSessionLocal,
         "platform",
         "sa6@example.com",
-        "pass",
+        TEST_PASSWORD,
         "super_admin",
         client.app.state.cache_client,
     )
@@ -357,7 +370,7 @@ async def test_suspend_nonexistent_tenant(test_app):
     ) as http:
         # Login as superadmin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "sa6@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "sa6@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -378,7 +391,7 @@ async def test_create_user_in_tenant_endpoint(test_app):
     from tests.conftest import create_tenant_and_user_direct
 
     tenant_data = await create_tenant_and_user_direct(
-        AsyncSessionLocal, "tl8", "tl8@example.com", "pass", "admin"
+        AsyncSessionLocal, "tl8", "tl8@example.com", TEST_PASSWORD, "admin"
     )
     tenant_id = tenant_data["tenant_id"]
     user_id = tenant_data["user_id"]
@@ -400,7 +413,7 @@ async def test_create_user_in_tenant_endpoint(test_app):
     ) as http:
         # Login as admin
         r = await http.post(
-            "/api/v1/auth/login", json={"email": "tl8@example.com", "password": "pass"}
+            "/api/v1/auth/login", json={"email": "tl8@example.com", "password": TEST_PASSWORD}
         )
         assert r.status_code == 200
         access_token = r.json()["access_token"]
@@ -409,7 +422,7 @@ async def test_create_user_in_tenant_endpoint(test_app):
         # Create user in tenant
         create_resp = await http.post(
             f"/api/v1/tenants/{tenant_id}/users",
-            params={"email": "newuser@example.com", "password": "password123", "role": "member"},
+            params={"email": "newuser@example.com", "password": TEST_PASSWORD, "role": "member"},
             headers=headers,
         )
         assert create_resp.status_code == 200

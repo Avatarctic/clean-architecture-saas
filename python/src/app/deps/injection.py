@@ -191,7 +191,7 @@ async def get_current_user(
                         # Token is valid but not in cache - re-add it
                         from ..config import Settings
 
-                        ttl = Settings().access_token_ttl_seconds
+                        ttl = Settings().access_token_ttl_seconds  # type: ignore[call-arg]
                         await cache.set(f"session:{access_hash}", token, ex=ttl)
                         return claims
                     except HTTPException:

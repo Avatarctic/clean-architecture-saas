@@ -10,6 +10,7 @@ import (
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/tenant"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/domain/user"
 	"github.com/avatarctic/clean-architecture-saas/go/internal/core/ports"
+	"github.com/avatarctic/clean-architecture-saas/go/internal/utils"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -50,6 +51,11 @@ func (s *UserService) CreateUser(ctx context.Context, req *user.CreateUserReques
 	// Validate email uniqueness
 	if existingUser, err := s.repo.GetByEmail(ctx, req.Email); err == nil && existingUser != nil {
 		return nil, fmt.Errorf("email '%s' is already taken", req.Email)
+	}
+
+	// Validate password strength
+	if err := utils.ValidatePasswordStrength(req.Password); err != nil {
+		return nil, err
 	}
 
 	// Hash password
@@ -112,6 +118,11 @@ func (s *UserService) CreateUserInTenant(ctx context.Context, req *user.CreateUs
 	// Validate email uniqueness
 	if existingUser, err := s.repo.GetByEmail(ctx, req.Email); err == nil && existingUser != nil {
 		return nil, fmt.Errorf("email '%s' is already taken", req.Email)
+	}
+
+	// Validate password strength
+	if err := utils.ValidatePasswordStrength(req.Password); err != nil {
+		return nil, err
 	}
 
 	// Hash password
@@ -239,6 +250,11 @@ func (s *UserService) ChangePassword(ctx context.Context, userID uuid.UUID, oldP
 	// Verify old password first
 	if err := s.VerifyPassword(ctx, userID, oldPassword); err != nil {
 		return fmt.Errorf("invalid old password: %w", err)
+	}
+
+	// Validate password strength
+	if err := utils.ValidatePasswordStrength(newPassword); err != nil {
+		return err
 	}
 
 	// Hash new password
